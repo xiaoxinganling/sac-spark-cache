@@ -1,0 +1,8 @@
+rankdir=LR
+1 [color = green, style = filled]
+0 -> 1
+1 -> 2
+1 -> 4
+2 -> 3
+3 -> action_0
+4 -> action_1
