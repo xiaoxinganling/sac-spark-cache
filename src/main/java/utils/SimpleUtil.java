@@ -5,6 +5,8 @@ import entity.Stage;
 import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class SimpleUtil {
@@ -43,6 +45,87 @@ public class SimpleUtil {
                     }
                 }
                 if(sizeInJob > 1) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static boolean stageContainsParallelComputationInitial(Stage stage) {
+        Set<Long> rddInStage = new HashSet<>();
+        for(RDD rdd : stage.rdds) {
+            rddInStage.add(rdd.rddId);
+        }
+        for(RDD rdd : stage.rdds) {
+            if(rdd.rddParentIDs.size() > 1) {
+                int inStageSize = 0;
+                for(Long parentId : rdd.rddParentIDs) {
+                    if(rddInStage.contains(parentId)) {
+                        inStageSize++;
+                    }
+                }
+                if(inStageSize > 1) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static boolean stageContainsParallelComputation(JobStartEvent job, Stage stage, int[][] simpleDAG, int jobSize, BufferedWriter bw) throws IOException {
+        // step 1. 得到该stage中哪些rdd是pure_ref > 2的
+        // step 2. 生成邻接矩阵，传入Floyd算法得到新的距离矩阵
+        // step 3. 根据距离矩阵上两者的关系统计rdd的入边数，如果出现入边数>0则打印并返回false
+        // step 1.
+        Set<Long> rddInStageSet = new HashSet<>();
+        List<Long> toBeCache = new ArrayList<>();
+        long max = Long.MIN_VALUE;
+        for(RDD rdd : stage.rdds) {
+            assert !rddInStageSet.contains(rdd.rddId);
+            rddInStageSet.add(rdd.rddId);
+        }
+        for(int i = 0; i < simpleDAG.length - jobSize; i++) {
+            if(!rddInStageSet.contains((long) i)) {
+                continue;
+            }
+            int sum = 0;
+            for(int j = 0; j < simpleDAG[0].length; j++) {
+                if(simpleDAG[i][j] > 0) {
+                    sum += 1;
+                }
+            }
+            if(sum > 1) {
+                toBeCache.add((long) i);
+                max = Math.max(max, i);
+            }
+        }
+        if(toBeCache.size() == 0) {
+//            System.out.println("job_" + job.jobId + "_stage_" + stage.stageId +": no need to cache!");
+            return false;
+        }
+        // step 2.
+        int[][] distance = new int[(int) max + 1][(int) max + 1];
+        for(int i = 0; i < distance.length; i++) {
+            for(int j = 0; j < distance.length; j++) {
+                distance[i][j] = simpleDAG[i][j] > 0 ? 1 : FloydUtil.I;
+            }
+            distance[i][i] = 0;
+        }
+        // step 3.
+        int[][] shortestPath = FloydUtil.FloydWarshall(distance);
+//        if(stage.stageId == 22L) {
+//            System.out.println(shortestPath[30][38] + " " + shortestPath[38][30]);
+//        }
+        for(int i = 0; i < toBeCache.size(); i++) {
+            for(int j = i + 1; j < toBeCache.size(); j++) {
+                int source = toBeCache.get(i).intValue();
+                int dest = toBeCache.get(j).intValue();
+                if(shortestPath[source][dest] == FloydUtil.I && shortestPath[dest][source] == FloydUtil.I) {
+                    System.out.println("job_" + job.jobId + "_stage_" + stage.stageId +
+                            ": exists parallel computation, " + source + " " + dest + " " + toBeCache);
+                    bw.write("job_" + job.jobId + "_stage_" + stage.stageId +
+                            ": exists parallel computation, " + source + " " + dest + " " + toBeCache + "\n");
                     return true;
                 }
             }

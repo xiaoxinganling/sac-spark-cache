@@ -2,10 +2,13 @@ import entity.Stage;
 import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
 import org.junit.jupiter.api.Test;
+import utils.CacheSketcher;
 import utils.ResultOutputer;
 import utils.SimpleUtil;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
@@ -449,6 +452,111 @@ public class TestSimpleUtil {
             System.out.println(a + " " + b + " " + ratio);
             assertEquals(Double.MAX_VALUE, ratio);
         }
+    }
+
+    @Test
+    void testStageContainsParallelComputation() throws IOException {
+        {
+            if(new File("stage_contains_parallel_info").exists()) {
+                return;
+            }
+            BufferedWriter bw = new BufferedWriter(new FileWriter("stage_contains_parallel_info", true));
+            int totalNum = 0;
+            int noParallelNum = 0;
+            for (int i = 0; i < applicationName.length; i++) {
+                int appTotalNum = 0;
+                int appNoParallelNum = 0;
+//            System.out.println("test application's : " + applicationName[i] + " stage compute time");
+//            if (!applicationName[i].contains("spark_svm")) {
+//                continue;
+//            }
+                List<JobStartEvent> jobList = new ArrayList<>();
+                List<StageCompletedEvent> stageList = new ArrayList<>();
+                StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[i]);
+                Set<Long> actualStage = new HashSet<>();
+                for(StageCompletedEvent sce : stageList) {
+                    actualStage.add(sce.stage.stageId);
+                }
+                int[][] simpleDAG = CacheSketcher.generateSimpleDAGByJobsAndStages(jobList, stageList);
+                int curDealStageSize = 0;
+                for(JobStartEvent jse : jobList) {
+//                Map<Long, Stage> stageMap = SimpleUtil.filteredStageMapOfJob(jse, stageList);
+                    for(Stage stage : jse.stages) {
+                        if(!actualStage.contains(stage.stageId)) {
+                            continue;
+                        }
+                        boolean containsParallel = SimpleUtil.stageContainsParallelComputation(jse, stage, simpleDAG, jobList.size(), bw);
+//                    System.out.println(totalNum + " -> job " + jse.jobId + " stage " + stage.stageId + " contains parallel: " + containsParallel);
+                        if(!containsParallel) {
+                            noParallelNum++;
+                            appNoParallelNum++;
+                        }
+                        appTotalNum++;
+                        totalNum++;
+                        System.out.println("process: " + curDealStageSize++ + "/" + stageList.size());
+                    }
+                }
+                System.out.println(applicationName[i] + " -> totalNum: " + appTotalNum + " noParallelNum: " + appNoParallelNum);
+                bw.write(applicationName[i] + " -> totalNum: " + appTotalNum + " noParallelNum: " + appNoParallelNum + "\n");
+            }
+            System.out.println("totalNum: " + totalNum + " noParallelNum: " + noParallelNum);
+            bw.write("totalNum: " + totalNum + " noParallelNum: " + noParallelNum + "\n");
+            bw.close();
+        }
+    }
+
+    @Test
+    void testStageContainsParallelComputationInitial() throws IOException {
+        {
+            if(new File("stage_contains_parallel_info_initial").exists()) {
+                return;
+            }
+            BufferedWriter bw = new BufferedWriter(new FileWriter("stage_contains_parallel_info_initial", true));
+            int totalNum = 0;
+            int noParallelNum = 0;
+            for (int i = 0; i < applicationName.length; i++) {
+                int appTotalNum = 0;
+                int appNoParallelNum = 0;
+//            System.out.println("test application's : " + applicationName[i] + " stage compute time");
+//            if (!applicationName[i].contains("spark_svm")) {
+//                continue;
+//            }
+                List<JobStartEvent> jobList = new ArrayList<>();
+                List<StageCompletedEvent> stageList = new ArrayList<>();
+                StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[i]);
+                Set<Long> actualStage = new HashSet<>();
+                for(StageCompletedEvent sce : stageList) {
+                    actualStage.add(sce.stage.stageId);
+                }
+                int curDealStageSize = 0;
+                for(JobStartEvent jse : jobList) {
+//                Map<Long, Stage> stageMap = SimpleUtil.filteredStageMapOfJob(jse, stageList);
+                    for(Stage stage : jse.stages) {
+                        if(!actualStage.contains(stage.stageId)) {
+                            continue;
+                        }
+                        boolean containsParallel = SimpleUtil.stageContainsParallelComputationInitial(stage);
+                        if(containsParallel) {
+                            System.out.println(totalNum + " -> job " + jse.jobId + " stage " + stage.stageId + " contains parallel: " + true);
+                            bw.write(applicationName[i] + " job " + jse.jobId + " stage " + stage.stageId + " contains parallel.\n");
+                        }
+                        if(!containsParallel) {
+                            noParallelNum++;
+                            appNoParallelNum++;
+                        }
+                        appTotalNum++;
+                        totalNum++;
+                        System.out.println("process: " + curDealStageSize++ + "/" + stageList.size());
+                    }
+                }
+                System.out.println(applicationName[i] + " -> totalNum: " + appTotalNum + " noParallelNum: " + appNoParallelNum);
+                bw.write(applicationName[i] + " -> totalNum: " + appTotalNum + " noParallelNum: " + appNoParallelNum + "\n");
+            }
+            System.out.println("totalNum: " + totalNum + " noParallelNum: " + noParallelNum);
+            bw.write("totalNum: " + totalNum + " noParallelNum: " + noParallelNum + "\n");
+            bw.close();
+        }
+
     }
 
 }

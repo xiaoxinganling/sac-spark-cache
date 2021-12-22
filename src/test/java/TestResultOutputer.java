@@ -240,6 +240,7 @@ public class TestResultOutputer {
         }
     }
 
+    // KEYPOINT
     @Test
     void testKeyPathForAllApplication() throws IOException {
         String fileName = "E:\\Google Chrome Download\\";
