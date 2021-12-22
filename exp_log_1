@@ -1,0 +1,241 @@
+D:\software\jdk\bin\java.exe -ea -Didea.test.cyclic.buffer.size=1048576 "-javaagent:D:\software\IntelliJ IDEA Community Edition 2019.3\lib\idea_rt.jar=10876:D:\software\IntelliJ IDEA Community Edition 2019.3\bin" -Dfile.encoding=UTF-8 -classpath "D:\software\IntelliJ IDEA Community Edition 2019.3\lib\idea_rt.jar;D:\software\IntelliJ IDEA Community Edition 2019.3\plugins\junit\lib\junit5-rt.jar;D:\software\IntelliJ IDEA Community Edition 2019.3\plugins\junit\lib\junit-rt.jar;D:\software\jdk\jre\lib\charsets.jar;D:\software\jdk\jre\lib\deploy.jar;D:\software\jdk\jre\lib\ext\access-bridge-64.jar;D:\software\jdk\jre\lib\ext\cldrdata.jar;D:\software\jdk\jre\lib\ext\dnsns.jar;D:\software\jdk\jre\lib\ext\jaccess.jar;D:\software\jdk\jre\lib\ext\jfxrt.jar;D:\software\jdk\jre\lib\ext\localedata.jar;D:\software\jdk\jre\lib\ext\nashorn.jar;D:\software\jdk\jre\lib\ext\sunec.jar;D:\software\jdk\jre\lib\ext\sunjce_provider.jar;D:\software\jdk\jre\lib\ext\sunmscapi.jar;D:\software\jdk\jre\lib\ext\sunpkcs11.jar;D:\software\jdk\jre\lib\ext\zipfs.jar;D:\software\jdk\jre\lib\javaws.jar;D:\software\jdk\jre\lib\jce.jar;D:\software\jdk\jre\lib\jfr.jar;D:\software\jdk\jre\lib\jfxswt.jar;D:\software\jdk\jre\lib\jsse.jar;D:\software\jdk\jre\lib\management-agent.jar;D:\software\jdk\jre\lib\plugin.jar;D:\software\jdk\jre\lib\resources.jar;D:\software\jdk\jre\lib\rt.jar;D:\IDEAWorkspace\sac-spark-cache\target\test-classes;D:\IDEAWorkspace\sac-spark-cache\target\classes;C:\Users\小小冰\.m2\repository\com\alibaba\fastjson\1.2.62\fastjson-1.2.62.jar;C:\Users\小小冰\.m2\repository\org\projectlombok\lombok\1.18.12\lombok-1.18.12.jar;C:\Users\小小冰\.m2\repository\junit\junit\4.12\junit-4.12.jar;C:\Users\小小冰\.m2\repository\org\hamcrest\hamcrest-core\1.3\hamcrest-core-1.3.jar;C:\Users\小小冰\.m2\repository\org\junit\jupiter\junit-jupiter-api\5.7.0\junit-jupiter-api-5.7.0.jar;C:\Users\小小冰\.m2\repository\org\apiguardian\apiguardian-api\1.1.0\apiguardian-api-1.1.0.jar;C:\Users\小小冰\.m2\repository\org\opentest4j\opentest4j\1.2.0\opentest4j-1.2.0.jar;C:\Users\小小冰\.m2\repository\org\junit\platform\junit-platform-commons\1.7.0\junit-platform-commons-1.7.0.jar;C:\Users\小小冰\.m2\repository\org\junit\platform\junit-platform-launcher\1.7.0\junit-platform-launcher-1.7.0.jar;C:\Users\小小冰\.m2\repository\org\junit\platform\junit-platform-engine\1.7.0\junit-platform-engine-1.7.0.jar;C:\Users\小小冰\.m2\repository\org\junit\jupiter\junit-jupiter-engine\5.7.0\junit-jupiter-engine-5.7.0.jar;C:\Users\小小冰\.m2\repository\org\junit\vintage\junit-vintage-engine\5.7.0\junit-vintage-engine-5.7.0.jar;C:\Users\小小冰\.m2\repository\junit\junit\4.13\junit-4.13.jar" com.intellij.rt.junit.JUnitStarter -ideVersion5 -junit5 TestResultOutputer,testKeyPathForAllApplication
+
+test application's : spark_connected_component key path
+write spark_connected_component, job: 1 cache to time started!!!
+ estimated time: 2^5
+write spark_connected_component, job: 1 cache to time done!!!
+actual time: 136ms
+write spark_connected_component, job: 2 cache to time started!!!
+ estimated time: 2^8
+write spark_connected_component, job: 2 cache to time done!!!
+actual time: 2570ms
+write spark_connected_component, job: 3 cache to time started!!!
+ estimated time: 2^11
+write spark_connected_component, job: 3 cache to time done!!!
+actual time: 7834ms
+write spark_connected_component, job: 4 cache to time started!!!
+ estimated time: 2^12
+write spark_connected_component, job: 4 cache to time done!!!
+actual time: 3042ms
+write spark_connected_component cache to time done!!!
+test application's : spark_page_rank key path
+write spark_page_rank, job: 1 cache to time started!!!
+ estimated time: 2^7
+write spark_page_rank, job: 1 cache to time done!!!
+actual time: 89ms
+write spark_page_rank cache to time done!!!
+test application's : spark_svd++ key path
+write spark_svd++ cache to time done!!!
+test application's : spark_pregel_operation key path
+write spark_pregel_operation, job: 1 cache to time started!!!
+ estimated time: 2^6
+write spark_pregel_operation, job: 1 cache to time done!!!
+actual time: 45ms
+write spark_pregel_operation, job: 2 cache to time started!!!
+ estimated time: 2^8
+write spark_pregel_operation, job: 2 cache to time done!!!
+actual time: 165ms
+write spark_pregel_operation, job: 3 cache to time started!!!
+ estimated time: 2^11
+write spark_pregel_operation, job: 3 cache to time done!!!
+actual time: 1192ms
+write spark_pregel_operation, job: 4 cache to time started!!!
+ estimated time: 2^14
+write spark_pregel_operation, job: 4 cache to time done!!!
+actual time: 11724ms
+write spark_pregel_operation, job: 5 cache to time started!!!
+ estimated time: 2^17
+write spark_pregel_operation, job: 5 cache to time done!!!
+actual time: 136246ms
+write spark_pregel_operation, job: 6 cache to time started!!!
+ estimated time: 2^20
+write spark_pregel_operation, job: 6 cache to time done!!!
+actual time: 2497211ms
+skip job_7, for 2^23
+skip job_8, for 2^26
+skip job_9, for 2^29
+skip job_10, for 2^32
+skip job_11, for 2^35
+skip job_12, for 2^36
+write spark_pregel_operation cache to time done!!!
+test application's : spark_shorted_path key path
+write spark_shorted_path, job: 1 cache to time started!!!
+ estimated time: 2^3
+write spark_shorted_path, job: 1 cache to time done!!!
+actual time: 3ms
+write spark_shorted_path cache to time done!!!
+test application's : spark_svm key path
+write spark_svm, job: 6 cache to time started!!!
+ estimated time: 2^3
+write spark_svm, job: 6 cache to time done!!!
+actual time: 3ms
+write spark_svm cache to time done!!!
+test application's : spark_strongly_connected_component key path
+write spark_strongly_connected_component, job: 2 cache to time started!!!
+ estimated time: 2^8
+write spark_strongly_connected_component, job: 2 cache to time done!!!
+actual time: 112ms
+write spark_strongly_connected_component, job: 5 cache to time started!!!
+ estimated time: 2^13
+write spark_strongly_connected_component, job: 5 cache to time done!!!
+actual time: 6828ms
+write spark_strongly_connected_component, job: 8 cache to time started!!!
+ estimated time: 2^18
+write spark_strongly_connected_component, job: 8 cache to time done!!!
+actual time: 182144ms
+skip job_11, for 2^23
+skip job_14, for 2^28
+skip job_17, for 2^33
+skip job_20, for 2^38
+skip job_23, for 2^43
+skip job_26, for 2^48
+skip job_29, for 2^53
+skip job_32, for 2^58
+skip job_35, for 2^63
+skip job_38, for 2^68
+skip job_41, for 2^73
+skip job_44, for 2^78
+skip job_47, for 2^83
+skip job_50, for 2^88
+skip job_53, for 2^93
+skip job_56, for 2^98
+skip job_59, for 2^103
+skip job_62, for 2^108
+skip job_65, for 2^113
+skip job_68, for 2^118
+skip job_71, for 2^123
+skip job_74, for 2^128
+skip job_77, for 2^133
+skip job_80, for 2^138
+skip job_83, for 2^143
+skip job_86, for 2^148
+skip job_89, for 2^123
+skip job_90, for 2^126
+skip job_91, for 2^129
+skip job_92, for 2^132
+skip job_93, for 2^135
+skip job_94, for 2^138
+skip job_95, for 2^141
+skip job_96, for 2^144
+skip job_97, for 2^147
+skip job_98, for 2^150
+skip job_99, for 2^152
+skip job_102, for 2^187
+skip job_105, for 2^192
+skip job_108, for 2^197
+skip job_111, for 2^202
+skip job_114, for 2^207
+skip job_117, for 2^212
+skip job_120, for 2^217
+skip job_123, for 2^222
+skip job_126, for 2^189
+skip job_127, for 2^192
+skip job_128, for 2^195
+skip job_129, for 2^198
+skip job_130, for 2^201
+skip job_131, for 2^204
+skip job_132, for 2^207
+skip job_133, for 2^210
+skip job_134, for 2^212
+skip job_137, for 2^255
+skip job_140, for 2^260
+skip job_143, for 2^265
+skip job_146, for 2^270
+skip job_149, for 2^275
+skip job_152, for 2^280
+skip job_155, for 2^285
+skip job_158, for 2^290
+skip job_161, for 2^295
+skip job_164, for 2^300
+skip job_167, for 2^305
+skip job_170, for 2^310
+skip job_173, for 2^315
+skip job_176, for 2^320
+skip job_179, for 2^325
+skip job_182, for 2^330
+skip job_185, for 2^335
+skip job_188, for 2^340
+skip job_191, for 2^345
+skip job_194, for 2^350
+skip job_197, for 2^355
+skip job_200, for 2^360
+skip job_203, for 2^365
+skip job_206, for 2^370
+skip job_209, for 2^374
+write spark_strongly_connected_component cache to time done!!!
+test application's : spark_linear_regression key path
+write spark_linear_regression cache to time done!!!
+test application's : spark_logistic_regression key path
+write spark_logistic_regression cache to time done!!!
+test application's : spark_matrix_factorization key path
+write spark_matrix_factorization, job: 9 cache to time started!!!
+ estimated time: 2^7
+write spark_matrix_factorization, job: 9 cache to time done!!!
+actual time: 82ms
+write spark_matrix_factorization cache to time done!!!
+test application's : spark_triangle_count key path
+write spark_triangle_count, job: 1 cache to time started!!!
+ estimated time: 2^7
+write spark_triangle_count, job: 1 cache to time done!!!
+actual time: 61ms
+write spark_triangle_count cache to time done!!!
+test application's : spark_rdd_relation key path
+write spark_rdd_relation, job: 4 cache to time started!!!
+ estimated time: 2^2
+write spark_rdd_relation, job: 4 cache to time done!!!
+actual time: 14ms
+write spark_rdd_relation cache to time done!!!
+test application's : spark_kmeans key path
+write spark_kmeans cache to time done!!!
+test application's : spark_label_propagation key path
+write spark_label_propagation, job: 0 cache to time started!!!
+ estimated time: 2^5
+write spark_label_propagation, job: 0 cache to time done!!!
+actual time: 15ms
+write spark_label_propagation, job: 1 cache to time started!!!
+ estimated time: 2^8
+write spark_label_propagation, job: 1 cache to time done!!!
+actual time: 108ms
+write spark_label_propagation, job: 2 cache to time started!!!
+ estimated time: 2^11
+write spark_label_propagation, job: 2 cache to time done!!!
+actual time: 895ms
+write spark_label_propagation, job: 3 cache to time started!!!
+ estimated time: 2^14
+write spark_label_propagation, job: 3 cache to time done!!!
+actual time: 8766ms
+write spark_label_propagation, job: 4 cache to time started!!!
+ estimated time: 2^17
+write spark_label_propagation, job: 4 cache to time done!!!
+actual time: 83306ms
+write spark_label_propagation, job: 5 cache to time started!!!
+ estimated time: 2^20
+write spark_label_propagation, job: 5 cache to time done!!!
+actual time: 1318523ms
+skip job_6, for 2^23
+skip job_7, for 2^26
+skip job_8, for 2^29
+skip job_9, for 2^32
+skip job_10, for 2^35
+skip job_11, for 2^38
+skip job_12, for 2^41
+skip job_13, for 2^44
+skip job_14, for 2^47
+skip job_15, for 2^50
+skip job_16, for 2^53
+skip job_17, for 2^56
+skip job_18, for 2^59
+skip job_19, for 2^62
+skip job_20, for 2^63
+write spark_label_propagation cache to time done!!!
+test application's : spark_decision_tree key path
+write spark_decision_tree cache to time done!!!
+test application's : spark_pca key path
+write spark_pca cache to time done!!!
+test application's : spark_tera_sort key path
+write spark_tera_sort cache to time done!!!
+
+
+Process finished with exit code 0
+
+time: 1h 12m 17s 745ms

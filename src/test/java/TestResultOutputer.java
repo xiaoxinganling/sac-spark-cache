@@ -2,12 +2,13 @@ import com.alibaba.fastjson.JSON;
 import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
 import org.junit.jupiter.api.Test;
+import utils.CacheSketcher;
 import utils.ResultOutputer;
+import utils.SimpleUtil;
+
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestResultOutputer {
@@ -188,4 +189,94 @@ public class TestResultOutputer {
         }
     }
 
+    @Test
+    void testKeyPath() throws IOException {
+        String fileName = "E:\\Google Chrome Download\\";
+        String[] applicationName = StaticSketch.applicationName;
+        String[] applicationPath = StaticSketch.applicationPath;
+        {
+            for(int j = 0; j < applicationName.length; j++) {//applicationName.length
+                System.out.println("test application's : " + applicationName[j] + " key_path");
+                if(!applicationName[j].contains("spark_svm")) {
+                    continue;
+                }
+                List<JobStartEvent> jobList = new ArrayList<>();
+                List<StageCompletedEvent> stageList = new ArrayList<>();
+                StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[j]);
+                for(JobStartEvent job : jobList) {
+                    if(job.jobId == 6L) {
+                        long[] chose = {0L, 1L, 2L, 3L};
+                        List<Long> choseRDD = new ArrayList<>();
+                        for(long l : chose) {
+                            choseRDD.add(l);
+                        }
+                        ResultOutputer.writeCacheToTime(choseRDD, job, applicationName[j], applicationName[j] + "_job_" +
+                                job.jobId + "_key_path.csv");
+                    }
+                }
+            }
+        }
+        {
+            for(int j = 0; j < applicationName.length; j++) {//applicationName.length
+                System.out.println("test application's : " + applicationName[j] + " key_path");
+                if(!applicationName[j].contains("spark_svm")) {
+                    continue;
+                }
+                List<JobStartEvent> jobList = new ArrayList<>();
+                List<StageCompletedEvent> stageList = new ArrayList<>();
+                StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[j]);
+                for(JobStartEvent job : jobList) {
+                    if(job.jobId == 6L) {
+                        long[] chose = {2L, 3L, 27L};
+                        List<Long> choseRDD = new ArrayList<>();
+                        for(long l : chose) {
+                            choseRDD.add(l);
+                        }
+                        ResultOutputer.writeCacheToTime(choseRDD, job, applicationName[j], applicationName[j] + "_job_" +
+                                job.jobId + "_key_path_another.csv");
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void testKeyPathForAllApplication() throws IOException {
+        String fileName = "E:\\Google Chrome Download\\";
+        String[] applicationName = StaticSketch.applicationName;
+        String[] applicationPath = StaticSketch.applicationPath;
+        {
+            for(int j = 0; j < applicationName.length; j++) {//applicationName.length
+                System.out.println("test application's : " + applicationName[j] + " key path");
+//                if(new File(applicationName[j] + "_jobs_key_path.csv").exists()) {
+//                    System.out.println("already exists!!!");
+//                    continue;
+//                } // TODO: need to recover
+//                if(!applicationName[j].contains("spark_svm")) {
+//                    continue;
+//                }
+                List<JobStartEvent> jobList = new ArrayList<>();
+                List<StageCompletedEvent> stageList = new ArrayList<>();
+                StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[j]);
+                List<Long> toCacheInApplication = SimpleUtil.rddToCacheInApplication(jobList, stageList);
+                for(JobStartEvent job : jobList) {
+                    if(SimpleUtil.jobContainsParallelStages(job, stageList)) {
+                        List<Long> toCacheInJob = SimpleUtil.rddToCacheInJob(toCacheInApplication, job, stageList);
+                        if(toCacheInJob.size() > 21) {
+                            System.out.println("skip job_" + job.jobId + ", for 2^" + toCacheInJob.size());
+                            continue;
+                        }
+                        long startTime = System.currentTimeMillis();
+                        System.out.println("write " + applicationName[j] + ", job: " + job.jobId + " cache to time started!!! \n " +
+                                "estimated time: " + "2^" + toCacheInJob.size());
+                        ResultOutputer.writeCacheToTime(toCacheInJob, job, applicationName[j], "_jobs_key_path.csv");
+                        long endTime = System.currentTimeMillis();
+                        System.out.println("write " + applicationName[j] + ", job: " + job.jobId + " cache to time done!!!");
+                        System.out.println("actual time: " + (endTime - startTime)+ "ms");
+                    }
+                }
+                System.out.println("write " + applicationName[j] + " cache to time done!!!");
+            }
+        }
+    }
 }

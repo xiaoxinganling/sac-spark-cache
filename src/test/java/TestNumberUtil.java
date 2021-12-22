@@ -1,6 +1,5 @@
 import org.junit.jupiter.api.Test;
 import utils.NumberUtil;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestNumberUtil {

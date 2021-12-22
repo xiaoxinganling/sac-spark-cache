@@ -4,14 +4,17 @@ import entity.RDD;
 import entity.Stage;
 import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
-
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
 public class ResultOutputer {
+
+    // record every job's sum
+    private static long[] sum = new long[12];
+
+    private static final String doublePrintFormat = "%.4f";
 
     public static void writeFullSketchStatistics(List<JobStartEvent> jobs, String fileName, List<StageCompletedEvent> stages) throws Exception{
         BufferedWriter bw = new BufferedWriter(new FileWriter(fileName)); // "ref_time_space_ce"
@@ -332,7 +335,7 @@ public class ResultOutputer {
 
     }
 
-    public static void  writeHashMap(BufferedWriter bw, Map map) throws IOException {
+    public static void writeHashMap(BufferedWriter bw, Map map) throws IOException {
         if(map.size() == 0) {
             return;
         }
@@ -342,6 +345,108 @@ public class ResultOutputer {
             bw.write(map.get(keySet.get(i)).toString() + " ");
         }
         bw.write(map.get(keySet.get(keySet.size() - 1)).toString() + "\n");
+    }
+
+    /**
+     * 根据选择缓存的RDD组成的集合的生成幂集，讨论每一种选择下，采用正常、longest path、 shortest path的总时间、缓存后时间和缓存节省时间
+     * @param choseRDD
+     * @param job
+     * @param fileName
+     * @throws IOException
+     */
+    // KEYPOINT: bw need to close out of this function
+    public static void writeCacheToTime(List<Long> choseRDD, JobStartEvent job, String applicationName, String fileName) throws IOException {
+        // write: choseRDD, initial time(1), choose longest path's initial time(2), choose shortest path time's initial time(3)
+        // after cache time(4), choose longest path's after cache time(5), choose shortest path's after cache time(6)
+        // after cache reduction time(1-4), choose longest path's after cache reduction time(2-5), xxx shortest xxx (3-6)
+        // KEYPOINT: 要做就做一个通用的出来
+        Stage lastStage = SimpleUtil.lastStageOfJob(job);
+        Map<Long, Stage> stageMap = SimpleUtil.stageMapOfJob(job);
+        BufferedWriter bw = new BufferedWriter(new FileWriter(applicationName + fileName, true));
+        Arrays.fill(sum, 0);
+        bw.write(applicationName + ": job_" + job.jobId + "\n");
+//        bw.write("toCache, A_all, L_all, S_all, +_all, " +
+//                "A_cache, L_cache, S_cache, +_cache, " +
+//                "A_reduce, L_reduce, S_reduce, +_reduce\n");TODO: recover writing
+        backtrack(choseRDD, 0, lastStage, stageMap, bw, new ArrayList<>());
+        for (long l : sum) {
+            bw.write("," + l); // for csv
+//            System.out.print(sum[i] + ",");
+        }
+        bw.write("," + "record sum");
+//        System.out.println("sum...");
+        bw.write("\n\n\n");
+        bw.close();
+        // for CDF: key_path_cdf_sum.csv
+        // sum: |[4]-[5]|/[4], |[4]-[7]|/[4], |[8]-[9]|/[8], |[8]-[11]|/[8]
+        BufferedWriter sumCDF = new BufferedWriter(new FileWriter("key_path_cdf_sum.csv", true) );
+        sumCDF.write(applicationName + ": job_" + job.jobId + "\n");
+//        System.out.println(SimpleUtil.generateDifferenceRatio(sum[4], sum[5]));
+        sumCDF.write(String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(sum[4], sum[5])));
+        sumCDF.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(sum[4], sum[7])));
+        sumCDF.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(sum[8], sum[9])));
+        sumCDF.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(sum[8], sum[11])) + "\n");
+        sumCDF.close();
+        // end CDF: key_path_cdf_sum.csv
+    }
+
+    private static void backtrack(List<Long> choseRDD, int end, Stage stage, Map<Long, Stage> stageMap, BufferedWriter bw, List<Long> tmp) throws IOException {
+        // end为开区间
+        if(end > choseRDD.size()) {
+            return;
+        }
+        Set<Long> toPerform = new HashSet<>(tmp);
+        int one = SimpleUtil.computeTimeOfStage(stage, stageMap), two = one;
+        int three = SimpleUtil.computeTimeOfStageWithShortestPath(stage, stageMap);
+        int threeAfter = SimpleUtil.computeTimeOfStageWithAccumulation(stage, stageMap);
+        int four = SimpleUtil.computeTimeOfStageWithCache(toPerform, stage, stageMap);
+        int five = SimpleUtil.computeTimeOfStageWithCacheByLSPath(toPerform, stage, stageMap, true);
+        int six = SimpleUtil.computeTimeOfStageWithCacheByLSPath(toPerform, stage, stageMap, false);
+        int sixAfter = SimpleUtil.computeTimeOfStageWithCacheAndAccumulation(toPerform, stage, stageMap);
+        int seven = one - four, eight = two - five, nine = three - six, nineAfter = threeAfter - sixAfter;
+        int[] tmpArr = {one, two, three, threeAfter, four, five, six, sixAfter, seven, eight, nine, nineAfter};
+        for(int i = 0; i < sum.length; i++) {
+            sum[i] += tmpArr[i];
+        }
+        StringBuilder sb = new StringBuilder("[");
+        for(long l : tmp) {
+            sb.append(l).append(" ");
+        }
+        if(sb.length() > 1) {
+            sb.deleteCharAt(sb.length() - 1);
+        }
+        sb.append("]");
+//        String toWrite = sb.toString() + ", " + one + ", " + two + ", " + three +
+//                ", " + threeAfter + ", " + four + ", " + five + ", " + six + ", " +
+//                sixAfter + ", " + seven + ", " + eight + ", " + nine + "," + nineAfter + "\n";
+////        System.out.print(toWrite);
+//        bw.write(toWrite); TODO: recover writing
+        // for CDF: key_path_cdf_detail.csv
+        // |four-five|/four, |four-sixAfter|/four, |eight-seven|/seven, |nineAfter-seven|/seven TODO: divided by zero
+        // tmpArr: |[4]-[5]|/[4], |[4]-[7]|/[4], |[8]-[9]|/[8], |[8]-[11]|/[8]
+        BufferedWriter detailCDF = new BufferedWriter(new FileWriter("key_path_cdf_detail.csv", true) );
+        detailCDF.write(sb.toString());
+        detailCDF.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(tmpArr[4], tmpArr[5])));
+        detailCDF.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(tmpArr[4], tmpArr[7])));
+        detailCDF.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(tmpArr[8], tmpArr[9])));
+        detailCDF.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(tmpArr[8], tmpArr[11])) + "\n");
+        detailCDF.close();
+        // end CDF: key_path_cdf_detail.csv
+        for(int i = end; i < choseRDD.size(); i++) {
+            // dfs
+            tmp.add(choseRDD.get(i));
+            backtrack(choseRDD, i + 1, stage, stageMap, bw, tmp);
+            tmp.remove(tmp.size() - 1);
+        }
+    }
+
+    private static void swap(int i, int j, List<Long> choseRDD) {
+        if(i == j) {
+            return;
+        }
+        long tmp = choseRDD.get(i);
+        choseRDD.set(i, choseRDD.get(j));
+        choseRDD.set(j, tmp);
     }
 
     public static void main(String[] args) {
