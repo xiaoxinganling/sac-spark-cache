@@ -1,4 +1,6 @@
 import com.alibaba.fastjson.JSON;
+import entity.RDD;
+import entity.Stage;
 import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
 import org.junit.jupiter.api.Test;
@@ -136,13 +138,13 @@ public class TestResultOutputer {
             String[] applicationPath = StaticSketch.applicationPath;
             for(int i = 0; i < applicationName.length; i++) {
                 System.out.println("asserting generate statistics of application: " + applicationName[i]);
-                if(new File(applicationName[i] + "_sketch_statistics").exists()) {
+                if(new File(applicationName[i] + "_sketch_statistics_new").exists()) {
                     continue;
                 }
                 List<JobStartEvent> jobList = new ArrayList<>();
                 List<StageCompletedEvent> stageList = new ArrayList<>();
                 StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[i]);
-                ResultOutputer.writeSketchStatistics(jobList, applicationName[i] + "_sketch_statistics", stageList);
+                ResultOutputer.writeSketchStatistics(jobList, applicationName[i] + "_sketch_statistics_new", stageList);
             }
         }
     }
@@ -155,13 +157,13 @@ public class TestResultOutputer {
             String[] applicationPath = StaticSketch.applicationPath;
             for(int i = 0; i < applicationName.length; i++) {//applicationName.length
                 System.out.println("test application's : " + applicationName[i] + " simple DAG");
-                if(new File(applicationName[i] + "_stage_hit_info").exists()) {
+                if(new File(applicationName[i] + "_stage_hit_info_new").exists()) {
                     continue;
                 }
                 List<JobStartEvent> jobList = new ArrayList<>();
                 List<StageCompletedEvent> stageList = new ArrayList<>();
                 StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[i]);
-                ResultOutputer.writeStageHitInfo(jobList, stageList, applicationName[i] + "_stage_hit_info");
+                ResultOutputer.writeStageHitInfo(jobList, stageList, applicationName[i] + "_stage_hit_info_new");
             }
         }
     }
@@ -243,16 +245,19 @@ public class TestResultOutputer {
     // KEYPOINT
     @Test
     void testKeyPathForAllApplication() throws IOException {
+        if(new File("key_path_cdf_sum.csv").exists() || new File("key_path_cdf_detail.csv").exists()) {
+            return;
+        }
         String fileName = "E:\\Google Chrome Download\\";
         String[] applicationName = StaticSketch.applicationName;
         String[] applicationPath = StaticSketch.applicationPath;
         {
             for(int j = 0; j < applicationName.length; j++) {//applicationName.length
                 System.out.println("test application's : " + applicationName[j] + " key path");
-//                if(new File(applicationName[j] + "_jobs_key_path.csv").exists()) {
-//                    System.out.println("already exists!!!");
-//                    continue;
-//                } // TODO: need to recover
+                if(new File(applicationName[j] + "_jobs_key_path.csv").exists()) {
+                    System.out.println("already exists!!!");
+                    continue;
+                } // TODO: need to recover
 //                if(!applicationName[j].contains("spark_svm")) {
 //                    continue;
 //                }
@@ -280,4 +285,128 @@ public class TestResultOutputer {
             }
         }
     }
+
+    @Test
+    void testStageAllRDDPartition() throws IOException {
+        String fileName = "E:\\Google Chrome Download\\";
+        String[] applicationName = StaticSketch.applicationName;
+        String[] applicationPath = StaticSketch.applicationPath;
+        {
+//            if(new File("stage_all_rdd_partition.csv").exists()) {
+//                return;
+//            }
+            BufferedWriter bw = new BufferedWriter(new FileWriter("stage_all_rdd_partition.csv"));
+            for(int j = 0; j < applicationName.length; j++) {
+//                if(!applicationName[j].contains("spark_svm")) {
+//                    continue;
+//                }
+                List<JobStartEvent> jobList = new ArrayList<>();
+                List<StageCompletedEvent> stageList = new ArrayList<>();
+                StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[j]);
+                Set<Long> actualStage = new HashSet<>();
+                for(StageCompletedEvent sce : stageList) {
+                    actualStage.add(sce.stage.stageId);
+                }
+                int curDealStageSize = 0;
+                for(JobStartEvent job : jobList) {
+                    for(Stage stage : job.stages) {
+                        if (!actualStage.contains(stage.stageId)) {
+                            continue;
+                        }
+                        ResultOutputer.stageAllRDDPartition(applicationName[j], job, stage, bw);
+                        System.out.println("process: " + ++curDealStageSize + "/" + stageList.size());
+                    }
+                }
+            }
+            bw.close();
+        }
+    }
+
+    @Test
+    void testStageCachedRDDPartition() throws IOException {
+        String fileName = "E:\\Google Chrome Download\\";
+        String[] applicationName = StaticSketch.applicationName;
+        String[] applicationPath = StaticSketch.applicationPath;
+        {
+//            if(new File("stage_cached_rdd_partition.csv").exists()) {
+//                return;
+//            }
+            BufferedWriter bw = new BufferedWriter(new FileWriter("stage_cached_rdd_partition.csv"));
+            for(int j = 0; j < applicationName.length; j++) {
+//                if(!applicationName[j].contains("spark_svm")) {
+//                    continue;
+//                }
+                List<JobStartEvent> jobList = new ArrayList<>();
+                List<StageCompletedEvent> stageList = new ArrayList<>();
+                StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[j]);
+                int[][] simpleDAG = CacheSketcher.generateSimpleDAGByJobsAndStages(jobList, stageList);
+                Set<Long> actualStage = new HashSet<>();
+                for(StageCompletedEvent sce : stageList) {
+                    actualStage.add(sce.stage.stageId);
+                }
+                int curDealStageSize = 0;
+                for(JobStartEvent job : jobList) {
+                    for(Stage stage : job.stages) {
+                        if (!actualStage.contains(stage.stageId)) {
+                            continue;
+                        }
+                        ResultOutputer.stageCachedRDDPartition(applicationName[j], job, stage, simpleDAG, jobList.size(), bw);
+                        System.out.println("process: " + ++curDealStageSize + "/" + stageList.size());
+                    }
+                }
+            }
+            bw.close();
+        }
+    }
+
+    @Test
+    void testWriteTotalAndRepresentTime() throws IOException {
+        String fileName = "E:\\Google Chrome Download\\";
+        String[] applicationName = StaticSketch.applicationName;
+        String[] applicationPath = StaticSketch.applicationPath;
+        {
+            for (int i = 0; i < applicationName.length; i++) {
+//                if (!applicationName[i].contains("spark_svm")) {
+//                    continue;
+//                }
+//                if(applicationName[i].contains("spark_strongly")) {
+//                    continue;
+//                }
+                List<JobStartEvent> jobList = new ArrayList<>();
+                List<StageCompletedEvent> stageList = new ArrayList<>();
+                StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[i]);
+                List<Long> allToCache = SimpleUtil.rddToCacheInApplication(jobList, stageList);
+                // index from 0 to len-1
+                Set<Long> actualStage = new HashSet<>();
+                for(StageCompletedEvent sce : stageList) {
+                    actualStage.add(sce.stage.stageId);
+                }
+                int curJob = 0;
+                for(int j = 0; j < jobList.size(); j++) {
+                    // [j, jobList.size() - 1]
+                    System.out.println(applicationName[i] + ": " + ++curJob + "/" + jobList.size());
+                    List<JobStartEvent> newJobList = jobList.subList(j, jobList.size());
+                    List<Stage> newStageList = new ArrayList<>();
+                    List<Long> rddToCache = new ArrayList<>();
+                    for (int k = j; k < jobList.size(); k++) {
+                        for (Stage stage : jobList.get(k).stages) {
+                            if (actualStage.contains(stage.stageId)) {
+                                newStageList.add(stage);
+                                for (RDD rdd : stage.rdds) {
+                                    if (allToCache.contains(rdd.rddId)) {
+                                        if(!rddToCache.contains(rdd.rddId)) {
+                                            rddToCache.add(rdd.rddId);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    System.out.println(rddToCache);
+                    ResultOutputer.writeTotalAndRepresentTime(newJobList, newStageList, rddToCache, applicationName[i]);
+                }
+            }
+        }
+    }
+
 }

@@ -1,3 +1,4 @@
+import entity.RDD;
 import entity.Stage;
 import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
@@ -457,6 +458,7 @@ public class TestSimpleUtil {
     @Test
     void testStageContainsParallelComputation() throws IOException {
         {
+            // KEYPOINT: very long time!!!!!!
             if(new File("stage_contains_parallel_info").exists()) {
                 return;
             }
@@ -557,6 +559,64 @@ public class TestSimpleUtil {
             bw.close();
         }
 
+    }
+
+    @Test
+    void testRepresentTimeOfCachedRDDAmongJobsAndStages() throws IOException {
+        {
+            for (int i = 0; i < applicationName.length; i++) {
+                BufferedWriter bw = new BufferedWriter(new FileWriter("all_represent_time_depth", true));
+                bw.write(applicationName[i] + "\n");
+//                if (!applicationName[i].contains("spark_svm")) {
+//                    continue;
+//                }
+//                if(applicationName[i].contains("spark_strongly")) {
+//                    continue;
+//                }
+                List<JobStartEvent> jobList = new ArrayList<>();
+                List<StageCompletedEvent> stageList = new ArrayList<>();
+                StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[i]);
+                List<Long> allToCache = SimpleUtil.rddToCacheInApplication(jobList, stageList);
+                // index from 0 to len-1
+                Set<Long> actualStage = new HashSet<>();
+                for(StageCompletedEvent sce : stageList) {
+                    actualStage.add(sce.stage.stageId);
+                }
+                int curJob = 0;
+                for(int j = 0; j < jobList.size(); j++) {
+                    // [j, jobList.size() - 1]
+                    System.out.println(applicationName[i] + ": " + ++curJob + "/" + jobList.size());
+                    List<JobStartEvent> newJobList = jobList.subList(j, jobList.size());
+                    List<Stage> newStageList = new ArrayList<>();
+                    List<Long> rddToCache = new ArrayList<>();
+                    for(int k = j; k < jobList.size(); k++) {
+                        for(Stage stage : jobList.get(k).stages) {
+                            if(actualStage.contains(stage.stageId)) {
+                                newStageList.add(stage);
+                                for(RDD rdd : stage.rdds) {
+                                    if(allToCache.contains(rdd.rddId)) {
+                                        if(!rddToCache.contains(rdd.rddId)) {
+                                            rddToCache.add(rdd.rddId);
+                                        } //KEYPOINT: 时刻要考虑去重啊
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Map<Long, List<Double>> representTime = SimpleUtil.representTimeOfCachedRDDAmongJobsAndStages(newStageList, rddToCache);
+                    for(List<Double> list : representTime.values()) {
+                        for(int k = 0; k < list.size() - 1; k++) {
+                            if(!list.get(k).equals(list.get(k + 1))) {
+                                System.out.println("!!!!!!!!! " + applicationName[i] + " " + list); // 双重检测
+                                bw.write("!!!!!!!!! " + applicationName[i] + " " + list + "\n");
+                            }
+                        }
+                    }
+                    ResultOutputer.writeHashMap(bw, representTime);
+                }
+                bw.close();
+            }
+        }
     }
 
 }

@@ -76,7 +76,7 @@ public class StaticSketch {
         generateJobAndStageList(jobList, stageList, fileName);
         // 2. get ref/direct_ref/hop_compute_time/partition
         Map<Long, Integer> ref = CacheSketcher.generateRefForJobs(jobList);
-        Map<Long, Integer> directRef = CacheSketcher.generateRDDDirectRefForJobs(jobList);
+        Map<Long, Integer> directRef = CacheSketcher.generateRDDDirectRefForJobs(jobList, null);
         Map<Long, Integer> hopComputeTime = CacheSketcher.generateHopComputeTimeForJobs(jobList);
         Map<Long, Long> partitions = CacheSketcher.generatePartitionForJobs(jobList);
         // 3. filter rdd

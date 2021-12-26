@@ -14,12 +14,15 @@ public class ResultOutputer {
     // record every job's sum
     private static long[] sum = new long[12];
 
+    private static double[] ALL_REPRESENT = new double[2];
+
     private static final String doublePrintFormat = "%.4f";
 
+    @Deprecated
     public static void writeFullSketchStatistics(List<JobStartEvent> jobs, String fileName, List<StageCompletedEvent> stages) throws Exception{
         BufferedWriter bw = new BufferedWriter(new FileWriter(fileName)); // "ref_time_space_ce"
         Map<Long, Integer> refForAllJobs = CacheSketcher.generateRefForJobs(jobs); // 可以不要
-        Map<Long, Integer> directRefForAllJobs = CacheSketcher.generateRDDDirectRefForJobs(jobs);
+        Map<Long, Integer> directRefForAllJobs = CacheSketcher.generateRDDDirectRefForJobs(jobs, null);
         Map<Long, Integer> hopComputeTimeForAllJobs = CacheSketcher.generateHopComputeTimeForJobs(jobs); //可以是rdd id
         Map<Long, Long> partitionForAllJobs = CacheSketcher.generatePartitionForJobs(jobs);
         Map<Long, Float> costEffectiveness = new HashMap<>();
@@ -63,7 +66,12 @@ public class ResultOutputer {
     public static void writeSketchStatistics(List<JobStartEvent> jobs, String fileName, List<StageCompletedEvent> stages) throws Exception{
         BufferedWriter bw = new BufferedWriter(new FileWriter(fileName)); // "ref_time_space_ce"
         //Map<Long, Integer> refForAllJobs = CacheSketcher.generateRefForJobs(jobs); // 可以不要
-        Map<Long, Integer> directRefForAllJobs = CacheSketcher.generateRDDDirectRefForJobs(jobs);
+        Set<Long> actualStages = new HashSet<>();
+        for(StageCompletedEvent sce : stages) {
+            assert !actualStages.contains(sce.stage.stageId);
+            actualStages.add(sce.stage.stageId);
+        }
+        Map<Long, Integer> directRefForAllJobs = CacheSketcher.generateRDDDirectRefForJobs(jobs, actualStages);
         //Map<Long, Integer> hopComputeTimeForAllJobs = CacheSketcher.generateHopComputeTimeForJobs(jobs); //可以是rdd id
 //        Map<Long, Long> partitionForAllJobs = CacheSketcher.generatePartitionForJobs(jobs);
 //        Map<Long, Float> costEffectiveness = new HashMap<>();
@@ -112,7 +120,8 @@ public class ResultOutputer {
                 totalSize--;
             }
         }
-        int num = CacheSketcher.generateStageHitNumWithStages(stages, biggerThanZero);
+        // TODO: change into V0
+        int num = CacheSketcher.generateStageHitNumWithStagesV0(stages, biggerThanZero);
         double ratio = CacheSketcher.generateStageHitRatioWithJobs(jobs, biggerThanZero);
         int totalStageNumOfJobs = SimpleUtil.stageNumOfJobs(jobs);
         // total_rdd_num, chose_rdd_num, total_stage_num, hit_stage_num, job_stage_hit_ratio
@@ -156,7 +165,7 @@ public class ResultOutputer {
             }
         }
         // TODO: write to file
-        int num = CacheSketcher.generateStageHitNumWithStages(stages, biggerThanZero);
+        int num = CacheSketcher.generateStageHitNumWithStagesV1(stages, biggerThanZero);
         double ratio = CacheSketcher.generateStageHitRatioWithJobs(jobs, biggerThanZero);
         int totalStageNumOfJobs = SimpleUtil.stageNumOfJobs(jobs);
 //        System.out.println((simpleDAG.length - jobs.size() - zeroRDDNum) + " " + biggerThanZero.size()
@@ -342,9 +351,11 @@ public class ResultOutputer {
         List<Long> keySet = new ArrayList<>(map.keySet());
         Collections.sort(keySet);
         for(int i = 0; i < keySet.size() - 1; i++) {
-            bw.write(map.get(keySet.get(i)).toString() + " ");
+//            bw.write(map.get(keySet.get(i)).toString() + " ");
+            bw.write("(" + keySet.get(i) + ", " + map.get(keySet.get(i)).toString() + ") ");
         }
-        bw.write(map.get(keySet.get(keySet.size() - 1)).toString() + "\n");
+//        bw.write(map.get(keySet.get(keySet.size() - 1)).toString() + "\n");
+        bw.write("(" + keySet.get(keySet.size() - 1) + ", " + map.get(keySet.get(keySet.size() - 1)).toString() + ")\n");
     }
 
     /**
@@ -388,6 +399,99 @@ public class ResultOutputer {
         sumCDF.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(sum[8], sum[11])) + "\n");
         sumCDF.close();
         // end CDF: key_path_cdf_sum.csv
+    }
+
+    /**
+     *根据jobs和stages得到represent time，然后根据rddToCache的每种情况计算all time，write job-level的all/represent time+几个job的all/represent time
+     * @param jobs
+     * @param stages
+     * @param rddToCache
+     * @param applicationName
+     * @throws IOException
+     */
+    public static void writeTotalAndRepresentTime(List<JobStartEvent> jobs, List<Stage> stages, List<Long> rddToCache, String applicationName) throws IOException {
+        // step 1. get every data's representative time
+        // step 2. get the process of total time (use key path) of different cached data// KEYPOINT maybe every job
+        Arrays.fill(ALL_REPRESENT, 0);
+        Map<Long, List<Double>> representTime = SimpleUtil.representTimeOfCachedRDDAmongJobsAndStages(stages, rddToCache);
+        for(JobStartEvent job : jobs) {
+            // 每个job
+            Stage lastStage = SimpleUtil.lastStageOfJob(job);
+            Map<Long, Stage> stageMap = SimpleUtil.stageMapOfJob(job);
+            // step 3. write the result of every job or all job separately
+            backtrackV2(applicationName, rddToCache, 0, lastStage, stageMap, new ArrayList<>(), representTime); // TODO: add back
+        }
+        // step 4. plus the time of different cached data from representative data
+        BufferedWriter allJobCompare = new BufferedWriter(new FileWriter("all_vs_represent_all_job.csv", true) );
+        allJobCompare.write(applicationName + ": start from job_" + jobs.get(0).jobId + "\n");
+        allJobCompare.write("," + ALL_REPRESENT[0]);
+        allJobCompare.write("," + ALL_REPRESENT[1]);
+        allJobCompare.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(ALL_REPRESENT[0], ALL_REPRESENT[1])) + "\n");
+        allJobCompare.close();
+    }
+
+    /**
+     * 对于选中的缓存集合，得到一个longest path的run time，同时记录根据map得到的run time，两者做一个差异
+     * @param choseRDD
+     * @param end
+     * @param stage
+     * @param stageMap
+     * @param tmp
+     * @throws IOException
+     */
+    private static void backtrackV2(String applicationName, List<Long> choseRDD, int end, Stage stage, Map<Long, Stage> stageMap,
+                                    List<Long> tmp, Map<Long, List<Double>> representTime) throws IOException {
+        // end为开区间
+        if(end > choseRDD.size()) {
+            return;
+        }
+        Set<Long> toPerform = new HashSet<>(tmp);
+        int one = SimpleUtil.computeTimeOfStage(stage, stageMap) -
+                SimpleUtil.computeTimeOfStageWithCacheByLSPath(toPerform, stage, stageMap, true);
+        double two = SimpleUtil.computeTimeOfStage(stage, stageMap) -
+                SimpleUtil.computeTimeOfStageWithCacheByRepresentTime(toPerform, stage, stageMap, true, representTime);
+//        for(long rddId : toPerform) {
+//            if(representTime.containsKey(rddId)) {
+//                two += NumberUtil.mean(representTime.get(rddId));
+//            }
+//        }
+//        for(Stage stg : stageMap.values()) {
+//            stg.rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId));
+//            for(int j = stg.rdds.size() - 1; j >= 0; j--) {
+//                long rddId = stg.rdds.get(j).rddId;
+//                if(toPerform.contains(rddId)) {
+////                    if(representTime.containsKey(rddId)) {
+////                        two += NumberUtil.mean(representTime.get(rddId)); // TODO: 平均值还可以再优化
+////                    }
+////                    two += (j + 1); TODO: 要找关键路径
+//                    break;
+//                }
+//            }
+//        }
+        double[] tmpArr = {one, two};
+        for(int i = 0; i < ALL_REPRESENT.length; i++) {
+            ALL_REPRESENT[i] += tmpArr[i];
+        }
+        StringBuilder sb = new StringBuilder("[");
+        for(long l : tmp) {
+            sb.append(l).append(" ");
+        }
+        if(sb.length() > 1) {
+            sb.deleteCharAt(sb.length() - 1);
+        }
+        sb.append("]");
+        BufferedWriter everyJobCompare = new BufferedWriter(new FileWriter("all_vs_represent_every_job.csv", true) );
+        everyJobCompare.write(applicationName + "_stage_" + stage.stageId + "_" + sb.toString());
+        everyJobCompare.write("," + one);
+        everyJobCompare.write("," + two);
+        everyJobCompare.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(tmpArr[0], tmpArr[1])) + "\n");
+        everyJobCompare.close();
+        for(int i = end; i < choseRDD.size(); i++) {
+            // dfs
+            tmp.add(choseRDD.get(i));
+            backtrackV2(applicationName, choseRDD, i + 1, stage, stageMap, tmp, representTime);
+            tmp.remove(tmp.size() - 1);
+        }
     }
 
     private static void backtrack(List<Long> choseRDD, int end, Stage stage, Map<Long, Stage> stageMap, BufferedWriter bw, List<Long> tmp) throws IOException {
@@ -438,6 +542,69 @@ public class ResultOutputer {
             backtrack(choseRDD, i + 1, stage, stageMap, bw, tmp);
             tmp.remove(tmp.size() - 1);
         }
+    }
+
+    /**
+     * 写入每个stage中，rdd的partition信息到bw
+     * @param applicationName
+     * @param job
+     * @param stage
+     * @param bw
+     * @throws IOException
+     */
+    public static void stageAllRDDPartition(String applicationName, JobStartEvent job, Stage stage, BufferedWriter bw) throws IOException {
+        StringBuilder sb = new StringBuilder(applicationName + "/" + job.jobId + "/" + stage.stageId);
+        List<Double> data = new ArrayList<>();
+        for(RDD rdd : stage.rdds) {
+            sb.append(", ").append(rdd.partitionNum);
+            data.add((double) rdd.partitionNum);
+        }
+        bw.write(sb.toString() + ", " + NumberUtil.mean(data) + ", "
+                + NumberUtil.stdDev(data) + "\n");
+    }
+
+    /**
+     * 写入每个stage中缓存的rdd的partition信息到bw
+     * simpleDAG和jobSize用于计算每个stage中的cached rdd
+     * @param applicationName
+     * @param job
+     * @param stage
+     * @param simpleDAG
+     * @param jobSize
+     * @param bw
+     */
+    public static void stageCachedRDDPartition(String applicationName, JobStartEvent job, Stage stage,
+                                               int[][] simpleDAG, int jobSize, BufferedWriter bw) throws IOException {
+        // step 1. get cached rdd
+        Map<Long, RDD> rddInStageMap = new HashMap<>();
+        List<Long> toBeCache = new ArrayList<>();
+        for(RDD rdd : stage.rdds) {
+            assert !rddInStageMap.containsKey(rdd.rddId);
+            rddInStageMap.put(rdd.rddId, rdd);
+        }
+        for(int i = 0; i < simpleDAG.length - jobSize; i++) {
+            if(!rddInStageMap.containsKey((long) i)) {
+                continue;
+            }
+            int sum = 0;
+            for(int j = 0; j < simpleDAG[0].length; j++) {
+                if(simpleDAG[i][j] > 0) {
+                    sum += 1;
+                }
+            }
+            if(sum > 1) {
+                toBeCache.add((long) i);
+            }
+        }
+        // step 2. record partition info
+        StringBuilder sb = new StringBuilder(applicationName + "/" + job.jobId + "/" + stage.stageId);
+        List<Double> data = new ArrayList<>();
+        for(long rddId : toBeCache) {
+            sb.append(", ").append(rddInStageMap.get(rddId).partitionNum);
+            data.add((double) rddInStageMap.get(rddId).partitionNum);
+        }
+        bw.write(sb.toString() + ", " + NumberUtil.mean(data) + ", "
+                + NumberUtil.stdDev(data) + "\n");
     }
 
     private static void swap(int i, int j, List<Long> choseRDD) {

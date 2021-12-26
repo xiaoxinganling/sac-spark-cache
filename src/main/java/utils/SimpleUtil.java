@@ -134,6 +134,86 @@ public class SimpleUtil {
     }
 
     /**
+     * 根据当前jobs和stages统计需要缓存的rdd，并取每个stage最右边的rdd作为加速该stage的原因
+     * @param stages
+     * @return
+     */
+    public static Map<Long, List<Double>> representTimeOfCachedRDDAmongJobsAndStages(List<Stage> stages, List<Long> rddToCache) {
+        Map<Long, List<Double>> representTime = new HashMap<>();
+        // 1. get rdd to be cached
+//        List<Long> rddToCache = rddToCacheInApplication(jobs, stages);
+        // 2. calculate rdd time TODO: use accumulator, not depth
+        Set<Long> cacheSet = new HashSet<>(rddToCache);
+        int curStageNum = 0;
+        for(Stage stage : stages) {
+            System.out.println("stage: " + ++curStageNum + "/" + stages.size());
+            // start accumulator
+            stage.rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId)); // TODO: 按照rddId大小决定先后是否不妥
+            for(int i = stage.rdds.size() - 1; i >= 0; i--) {
+                long rddId = stage.rdds.get(i).rddId;
+                if(cacheSet.contains(rddId)) {
+                    List<Double> curValue = representTime.getOrDefault(rddId, new ArrayList<>());
+//                    System.out.println("stage: " + stage.stageId + ", rdd: " + rddId + " before: " + curValue);
+                    if(curValue.size() != 0) {
+                        if(curValue.get(curValue.size() - 1) != i + 1) {
+                            System.out.println("============stage: " + stage.stageId + ", rdd: " + rddId + " before: " + curValue);
+                            System.out.println("============different value: " + (i + 1));
+                        }
+                    }
+                    curValue.add((double) i + 1);
+                    representTime.put(rddId, curValue);
+//                    System.out.println("stage: " + stage.stageId + ", rdd: " + rddId + " after: " + representTime.get(rddId));
+//                    break; // 只看最右 //TODO: test all
+                }
+            }
+            // end accumulator
+            // start depth
+//            Map<Long, RDD> rddMap = new HashMap<>();
+//            for(RDD rdd : stage.rdds) {
+//                rddMap.put(rdd.rddId, rdd);
+//            }
+//            stage.rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId)); // TODO: 按照rddId大小决定先后是否不妥
+//            for(int i = stage.rdds.size() - 1; i >= 0; i--) {
+//                long rddId = stage.rdds.get(i).rddId;
+//                if(rddToCache.contains(rddId)) {
+//                    Queue<Long> queue = new LinkedList<>();
+//                    queue.add(rddId);
+//                    int depth = 0;
+//                    while(!queue.isEmpty()) {
+//                        int size = queue.size();
+//                        for(int j = 0; j < size; j++) {
+//                            RDD curRDD = rddMap.get(queue.poll());
+//                            if(curRDD.rddParentIDs == null) {
+//                                continue;
+//                            } // null
+//                            for(long parentId : curRDD.rddParentIDs) {
+//                                if(rddMap.containsKey(parentId)) {// need to check
+//                                    queue.offer(parentId);
+//                                }
+//                            }
+//                        }
+//                        depth++;
+//                    }
+//                    List<Integer> curValue = representTime.getOrDefault(rddId, new ArrayList<>());
+////                    System.out.println("stage: " + stage.stageId + ", rdd: " + rddId + " before: " + curValue);
+//                    if(curValue.size() != 0) {
+//                        if(curValue.get(curValue.size() - 1) != depth) {
+//                            System.out.println("============stage: " + stage.stageId + ", rdd: " + rddId + " before: " + curValue);
+//                            System.out.println("============different value: " + depth);
+//                        }
+//                    }
+//                    curValue.add(depth);
+//                    representTime.put(rddId, curValue);
+//                    System.out.println("stage: " + stage.stageId + ", rdd: " + rddId + " after: " + representTime.get(rddId));
+//                    break; // 只看最右
+//                }
+//            }
+            // end depth
+        }
+        return representTime;
+    }
+
+    /**
      * 获取某个具体job中需要缓存的rdd
      * @param allToBeCache
      * @param job
@@ -386,13 +466,40 @@ public class SimpleUtil {
                 computeTimeOfStageWithCacheByLSPath(choseRDD, stageMap.get(maxOrMinId), stageMap, isLong);
     }
 
+    public static double computeTimeOfStageWithCacheByRepresentTime(Set<Long> choseRDD, Stage stage, Map<Long, Stage> stageMap, boolean isLong, Map<Long, List<Double>> representTime) {
+        // KEYPOINT: 一般偏向于rdd的出现顺序与rdd id的大小一致
+        if(stage == null || !stageMap.containsKey(stage.stageId)) {
+            return 0;
+        }
+        int ownTime = stage.rdds.size();
+        stage.rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId));
+        for(int i = stage.rdds.size() - 1; i >= 0; i--) {
+            if(choseRDD.contains(stage.rdds.get(i).rddId)) {
+                ownTime -= (NumberUtil.mean(representTime.get(stage.rdds.get(i).rddId)));
+                break;
+            }
+        }
+        long maxOrMinId = -1;
+        int maxOrMinTime = isLong ? Integer.MIN_VALUE : Integer.MAX_VALUE;
+        for(Long parentId : stage.parentIDs) {
+            Stage parentStage = stageMap.get(parentId);
+            if((isLong && parentStage.rdds.size() > maxOrMinTime) ||
+                    (!isLong && parentStage.rdds.size() < maxOrMinTime)) {
+                maxOrMinId = parentId;
+                maxOrMinTime = parentStage.rdds.size();
+            }
+        }
+        return maxOrMinId == -1 ? ownTime : ownTime +
+                computeTimeOfStageWithCacheByRepresentTime(choseRDD, stageMap.get(maxOrMinId), stageMap, isLong, representTime);
+    }
+
     /**
      * 返回newValue相较于source的差异，例如source=2，newValue=3，差异=(3-2)/2=0.5
      * @param source
      * @param newValue
      * @return
      */
-    public static double generateDifferenceRatio(long source, long newValue) {
+    public static double generateDifferenceRatio(double source, double newValue) {
         if(source == 0) {
             if(newValue == 0) {
                 return 0;

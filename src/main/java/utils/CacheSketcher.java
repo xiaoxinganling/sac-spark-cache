@@ -40,7 +40,7 @@ public class CacheSketcher {
 
     // KEYPOINT: 最终需要考虑跨job的ref
     public static Map<Long, Integer> generateRefPerJob(JobStartEvent job) {
-        Map<Long, Integer> res = generateRDDDirectRefPerJob(job);
+        Map<Long, Integer> res = generateRDDDirectRefPerJob(job, null);
         Map<Long, RDD> rddMap = generateRDDMapPerJob(job);
         for (Map.Entry<Long, Integer> entry : res.entrySet()) {
             Integer curValue = entry.getValue();
@@ -139,9 +139,21 @@ public class CacheSketcher {
     }
 
     // FIXME: 触发Job的RDD的direct ref为0
-    public static Map<Long, Integer> generateRDDDirectRefPerJob(JobStartEvent job) {
+
+    /**
+     * 返回每個job的direct ref，actualStages are stages actually used in this job
+     * @param job
+     * @param actualStages
+     * @return
+     */
+    public static Map<Long, Integer> generateRDDDirectRefPerJob(JobStartEvent job, Set<Long> actualStages) {
         Map<Long, Integer> rddToDirectRef = new HashMap<>();
+        int curStageSize = 0;
         for(Stage stage : job.stages) {
+            if(actualStages != null && !actualStages.contains(stage.stageId)) {
+                continue;
+            }
+//            System.out.println("stage: -> " + curStageSize++ + " / " + actualStages.size());
             for (RDD rdd : stage.rdds) {
                 // TODO: 不同job可能存在重复rdd
                 if(!rddToDirectRef.containsKey(rdd.rddId)) {
@@ -156,15 +168,17 @@ public class CacheSketcher {
         return rddToDirectRef;
     }
 
-    public static Map<Long, Integer> generateRDDDirectRefForJobs(List<JobStartEvent> jobs) {
+    public static Map<Long, Integer> generateRDDDirectRefForJobs(List<JobStartEvent> jobs, Set<Long> actualStages) {
         Map<Long, Integer> res = new HashMap<>();
+        int curJobSize = 0;
         for(JobStartEvent job : jobs) {
-            for(Map.Entry<Long, Integer> entry : generateRDDDirectRefPerJob(job).entrySet()) {
+            for(Map.Entry<Long, Integer> entry : generateRDDDirectRefPerJob(job, actualStages).entrySet()) {
                 if(entry.getValue().equals(0)) {
                     entry.setValue(1);
                 }
                 res.put(entry.getKey(), res.getOrDefault(entry.getKey(), 0) + entry.getValue());
             }
+            System.out.println("job: -> " + ++curJobSize + " / " + jobs.size());
         }
         return res;
     }
@@ -235,13 +249,24 @@ public class CacheSketcher {
         return resArray;
     }
 
+    public static int generateStageHitNumWithStagesV0(List<StageCompletedEvent> stages, List<Long> choseRDD) throws IOException {
+        int res = 0;
+        for (StageCompletedEvent sce : stages) {
+            int coverRDDOfStage = rddsAreUsefulToStage(sce.stage, choseRDD);
+            if (coverRDDOfStage > 0) {
+                res++;
+            }
+        }
+        return res;
+    }
+
     /**
-     * KEYPOINT
+     * KEYPOINT TODO: split by shuffle RDD info
      * @param stages
      * @param choseRDD
      * @return hit number of stage according to different chose RDD and actually run stages
      */
-    public static int generateStageHitNumWithStages(List<StageCompletedEvent> stages, List<Long> choseRDD) throws IOException {
+    public static int generateStageHitNumWithStagesV1(List<StageCompletedEvent> stages, List<Long> choseRDD) throws IOException {
         int res = 0;
         // FIXME: it's only for SVM and TeraSort's `cover 2 more RDD` situation
         Set<Long> noShuffleRDD = new HashSet<>();
@@ -258,7 +283,7 @@ public class CacheSketcher {
                 res++;
                 // FIXME: it's only for SVM and TeraSort's `cover 2 more RDD` situation
                 if (coverRDDOfStage > 1) {
-//                    System.out.println("stage: " + sce.stage.stageId + ", cover RDD num: " + coverRDDOfStage);
+                    System.out.println("stage: " + sce.stage.stageId + ", cover RDD num: " + coverRDDOfStage);
                     for(RDD rdd : sce.stage.rdds) {
                         if(choseRDD.contains(rdd.rddId)) {
 //                            System.out.print(rdd.rddId + ", ");
@@ -276,10 +301,10 @@ public class CacheSketcher {
                 }
                 // end FIXME: it's only for SVM and TeraSort's `cover 2 more RDD` situation
             }
-//            }else{
-//                // FIXME: it's only for SVM and TeraSort's uncovered Stage
-//                System.out.println(sce.stage.stageId + ",");
-//            }
+            else{
+                // FIXME: it's only for SVM and TeraSort's uncovered Stage
+                System.out.println(sce.stage.stageId + ",");
+            }
         }
 //        System.out.println(noShuffleRDD + ", size: " + noShuffleRDD.size() + "/" + choseRDD.size()); // FIXME: it's only for SVM and TeraSort's `cover 2 more RDD` situation
         // FIXME: it's only for SVM and TeraSort's `cover 2 more RDD` situation
@@ -440,7 +465,7 @@ public class CacheSketcher {
     public static Map<Long, Integer> generateHopPerJob(JobStartEvent job) {
         // 这里会包含省略的Stage
         Map<Long, Integer> res = new HashMap<>();
-        Map<Long, Integer> rddToDirectRef = generateRDDDirectRefPerJob(job);
+        Map<Long, Integer> rddToDirectRef = generateRDDDirectRefPerJob(job, null);
         Map<Long, RDD> idToRDD = generateRDDMapPerJob(job);
         // List<Long> zeroIndegreeRDD = generate0IndegreeRDDPerJob(job);
         Set<Long> zeroOutdegreeRDD = generate0OutDegreeRDDFromDirectRef(rddToDirectRef);
@@ -500,7 +525,7 @@ public class CacheSketcher {
     }
 
     public static Map<Long, Float> generateDirectCostEffectiveness(List<JobStartEvent> jobs, List<StageCompletedEvent> stages) {
-        Map<Long, Integer> directRefForAllJobs = generateRDDDirectRefForJobs(jobs);
+        Map<Long, Integer> directRefForAllJobs = generateRDDDirectRefForJobs(jobs, null);
         Map<Long, Integer> hopComputeTimeForAllJobs = generateHopComputeTimeForJobs(jobs);
         Map<Long, Long> partitionForAllJobs = generatePartitionForJobs(jobs);
         assert directRefForAllJobs.size() == hopComputeTimeForAllJobs.size();
@@ -514,7 +539,7 @@ public class CacheSketcher {
     }
 
     public static Map<Long, Float> generateLogDirectCostEffectiveness(List<JobStartEvent> jobs, List<StageCompletedEvent> stages) {
-        Map<Long, Integer> directRefForAllJobs = generateRDDDirectRefForJobs(jobs);
+        Map<Long, Integer> directRefForAllJobs = generateRDDDirectRefForJobs(jobs, null);
         Map<Long, Integer> hopComputeTimeForAllJobs = generateHopComputeTimeForJobs(jobs);
         Map<Long, Long> partitionForAllJobs = generatePartitionForJobs(jobs);
         assert directRefForAllJobs.size() == hopComputeTimeForAllJobs.size();
