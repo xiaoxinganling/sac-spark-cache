@@ -2,7 +2,10 @@ import entity.RDD;
 import entity.Stage;
 import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
+import org.apache.log4j.Logger;
 import org.junit.jupiter.api.Test;
+import sketch.StaticSketch;
+import sun.rmi.runtime.Log;
 import utils.CacheSketcher;
 import utils.ResultOutputer;
 import utils.SimpleUtil;
@@ -21,6 +24,7 @@ public class TestSimpleUtil {
     String fileName = "E:\\Google Chrome Download\\";
     String[] applicationName = StaticSketch.applicationName;
     String[] applicationPath = StaticSketch.applicationPath;
+    Logger logger = Logger.getLogger(TestSimpleUtil.class);
 
     @Test
     void testComputeTimeOfStage() throws IOException {
@@ -615,6 +619,55 @@ public class TestSimpleUtil {
                     ResultOutputer.writeHashMap(bw, representTime);
                 }
                 bw.close();
+            }
+        }
+    }
+
+    @Test
+    void testLastRDDofStage() throws IOException {
+        for (int i = 0; i < applicationName.length; i++) {
+            if(!applicationName[i].contains("spark_strongly")) {
+                continue;
+            }
+            List<JobStartEvent> jobList = new ArrayList<>();
+            List<StageCompletedEvent> stageList = new ArrayList<>();
+            StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[i]);
+            logger.info("test stage of " + applicationName[i]);
+            int curStage = 0;
+            for(StageCompletedEvent sce : stageList) {
+                logger.info(++curStage + "/" + stageList.size() + ": " + sce.stage.stageId + "——" +SimpleUtil.lastRDDOfStage(sce.stage).rddId);
+            }
+        }
+    }
+
+    @Test
+    void testLastRDDTimeOfStage() throws IOException {
+        for (int i = 0; i < applicationName.length; i++) {
+//            if(!applicationName[i].contains("spark_svm")) {
+//                continue;
+//            }
+            if(!applicationName[i].contains("spark_strongly")) {
+                continue;
+            }
+            List<JobStartEvent> jobList = new ArrayList<>();
+            List<StageCompletedEvent> stageList = new ArrayList<>();
+            StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[i]);
+            logger.info("test stage time of " + applicationName[i]);
+            int curStage = 0;
+            for(StageCompletedEvent sce : stageList) {
+                Map<Long, RDD> rddMap = new HashMap<>();
+                for(RDD rdd : sce.stage.rdds) {
+                    rddMap.put(rdd.rddId, rdd);
+                }
+                curStage++;
+                RDD lastRDD = SimpleUtil.lastRDDOfStage(sce.stage);
+//                logger.info(++curStage + "/" + stageList.size() + ": " + sce.stage.stageId + "——" +SimpleUtil.lastRDDOfStage(sce.stage).rddId);
+                logger.info("rdd size in Stage——" + sce.stage.stageId + ": " + rddMap.size());
+                logger.info(curStage + "/" + stageList.size() + ": " + sce.stage.stageId + "——" + SimpleUtil.lastRDDTimeOfStage(rddMap, lastRDD));
+//                logger.info(curStage + "/" + stageList.size() + ": " + sce.stage.stageId + "——" + SimpleUtil.lastRDDTimeOfStageV2(rddMap, lastRDD));
+//                double stageTime = SimpleUtil.lastRDDTimeOfStage(rddMap, SimpleUtil.lastRDDOfStage(sce.stage));
+//                logger.info(curStage + "/" + stageList.size() + ": " + sce.stage.stageId + "——" + stageTime);
+//                logger.debug(curStage + "/" + stageList.size() + ": " + sce.stage.stageId + "——" + stageTime);
             }
         }
     }

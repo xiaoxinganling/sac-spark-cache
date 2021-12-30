@@ -1,6 +1,6 @@
 package utils;
 
-public class UnionFind {
+public class UnionFindUtil {
 
     // 连通分量个数
     private int count;
@@ -12,7 +12,7 @@ public class UnionFind {
     private int[] size;
 
     // initialize
-    public UnionFind(int n) {
+    public UnionFindUtil(int n) {
         this.count = n;
         parent = new int[n];
         size = new int[n];

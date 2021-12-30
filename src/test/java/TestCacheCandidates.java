@@ -3,10 +3,10 @@ import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
 import entity.sac.CacheCandidateRule;
 import org.junit.jupiter.api.Test;
+import sketch.StaticSketch;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;

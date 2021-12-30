@@ -1,18 +1,15 @@
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import entity.StorageLevel;
-import entity.event.JobStartEvent;
-import entity.event.StageCompletedEvent;
 import org.junit.jupiter.api.Test;
+import sketch.StaticSketch;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
 public class TestStaticSketch {
 
     @Test

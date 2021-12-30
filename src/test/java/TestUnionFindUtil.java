@@ -1,10 +1,10 @@
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
-import utils.UnionFind;
+import utils.UnionFindUtil;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TestUnionFind {
+public class TestUnionFindUtil {
 
     @Test
     void testUnionFind() {
@@ -14,7 +14,7 @@ public class TestUnionFind {
         int[] d = {2, 10};
         int[] e = {3, 10};
         int[][] total = {a, b, c, d, e};
-        UnionFind uf = new UnionFind(39);
+        UnionFindUtil uf = new UnionFindUtil(39);
         for(int i = 0; i < total.length; i++) {
             for(int j = 0; j < total[i].length - 1; j++) {
                 uf.union(total[i][j], total[i][j + 1]);

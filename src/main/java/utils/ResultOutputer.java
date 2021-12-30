@@ -14,7 +14,7 @@ public class ResultOutputer {
     // record every job's sum
     private static long[] sum = new long[12];
 
-    private static double[] ALL_REPRESENT = new double[2];
+    private static double[] ALL_REPRESENT = new double[3];
 
     private static final String doublePrintFormat = "%.4f";
 
@@ -363,16 +363,18 @@ public class ResultOutputer {
      * @param choseRDD
      * @param job
      * @param fileName
+     * @param stages
      * @throws IOException
      */
     // KEYPOINT: bw need to close out of this function
-    public static void writeCacheToTime(List<Long> choseRDD, JobStartEvent job, String applicationName, String fileName) throws IOException {
+    public static void writeCacheToTime(List<Long> choseRDD, JobStartEvent job, String applicationName, String fileName, List<StageCompletedEvent> stages) throws IOException {
         // write: choseRDD, initial time(1), choose longest path's initial time(2), choose shortest path time's initial time(3)
         // after cache time(4), choose longest path's after cache time(5), choose shortest path's after cache time(6)
         // after cache reduction time(1-4), choose longest path's after cache reduction time(2-5), xxx shortest xxx (3-6)
         // KEYPOINT: 要做就做一个通用的出来
         Stage lastStage = SimpleUtil.lastStageOfJob(job);
-        Map<Long, Stage> stageMap = SimpleUtil.stageMapOfJob(job);
+//        Map<Long, Stage> stageMap = SimpleUtil.stageMapOfJob(job); // TODO: stageMapOfJob is not true
+        Map<Long, Stage> stageMap = SimpleUtil.filteredStageMapOfJob(job, stages);
         BufferedWriter bw = new BufferedWriter(new FileWriter(applicationName + fileName, true));
         Arrays.fill(sum, 0);
         bw.write(applicationName + ": job_" + job.jobId + "\n");
@@ -417,16 +419,25 @@ public class ResultOutputer {
         for(JobStartEvent job : jobs) {
             // 每个job
             Stage lastStage = SimpleUtil.lastStageOfJob(job);
-            Map<Long, Stage> stageMap = SimpleUtil.stageMapOfJob(job);
+//            Map<Long, Stage> stageMap = SimpleUtil.stageMapOfJob(job);
+            List<StageCompletedEvent> sceList = new ArrayList<>();
+            for(Stage stg : stages) {
+                StageCompletedEvent sceTmp = new StageCompletedEvent();
+                sceTmp.stage = stg;
+                sceList.add(sceTmp);
+            }
+            Map<Long, Stage> stageMap = SimpleUtil.filteredStageMapOfJob(job, sceList);
             // step 3. write the result of every job or all job separately
-            backtrackV2(applicationName, rddToCache, 0, lastStage, stageMap, new ArrayList<>(), representTime); // TODO: add back
+            backtrackV2(applicationName, rddToCache, 0, lastStage, stageMap, new ArrayList<>(), representTime);
         }
         // step 4. plus the time of different cached data from representative data
-        BufferedWriter allJobCompare = new BufferedWriter(new FileWriter("all_vs_represent_all_job.csv", true) );
+        BufferedWriter allJobCompare = new BufferedWriter(new FileWriter("all_vs_represent_all_job_new.csv", true) ); // TODO: no `_new`
         allJobCompare.write(applicationName + ": start from job_" + jobs.get(0).jobId + "\n");
         allJobCompare.write("," + ALL_REPRESENT[0]);
         allJobCompare.write("," + ALL_REPRESENT[1]);
-        allJobCompare.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(ALL_REPRESENT[0], ALL_REPRESENT[1])) + "\n");
+        allJobCompare.write("," + ALL_REPRESENT[2]);
+        allJobCompare.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(ALL_REPRESENT[0], ALL_REPRESENT[1])));
+        allJobCompare.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(ALL_REPRESENT[2], ALL_REPRESENT[1])) + "\n");
         allJobCompare.close();
     }
 
@@ -450,6 +461,8 @@ public class ResultOutputer {
                 SimpleUtil.computeTimeOfStageWithCacheByLSPath(toPerform, stage, stageMap, true);
         double two = SimpleUtil.computeTimeOfStage(stage, stageMap) -
                 SimpleUtil.computeTimeOfStageWithCacheByRepresentTime(toPerform, stage, stageMap, true, representTime);
+        double three = SimpleUtil.computeTimeOfStage(stage, stageMap) -
+                SimpleUtil.computeTimeOfStageWithCache(toPerform, stage, stageMap);
 //        for(long rddId : toPerform) {
 //            if(representTime.containsKey(rddId)) {
 //                two += NumberUtil.mean(representTime.get(rddId));
@@ -468,7 +481,7 @@ public class ResultOutputer {
 //                }
 //            }
 //        }
-        double[] tmpArr = {one, two};
+        double[] tmpArr = {one, two, three};
         for(int i = 0; i < ALL_REPRESENT.length; i++) {
             ALL_REPRESENT[i] += tmpArr[i];
         }
@@ -480,11 +493,13 @@ public class ResultOutputer {
             sb.deleteCharAt(sb.length() - 1);
         }
         sb.append("]");
-        BufferedWriter everyJobCompare = new BufferedWriter(new FileWriter("all_vs_represent_every_job.csv", true) );
+        BufferedWriter everyJobCompare = new BufferedWriter(new FileWriter("all_vs_represent_every_job_new.csv", true) ); // TODO: no `_new`
         everyJobCompare.write(applicationName + "_stage_" + stage.stageId + "_" + sb.toString());
         everyJobCompare.write("," + one);
         everyJobCompare.write("," + two);
-        everyJobCompare.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(tmpArr[0], tmpArr[1])) + "\n");
+        everyJobCompare.write("," + three);
+        everyJobCompare.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(tmpArr[0], tmpArr[1])));
+        everyJobCompare.write("," + String.format(doublePrintFormat, SimpleUtil.generateDifferenceRatio(tmpArr[2], tmpArr[1])) + "\n");
         everyJobCompare.close();
         for(int i = end; i < choseRDD.size(); i++) {
             // dfs

@@ -146,7 +146,7 @@ public class SimpleUtil {
         Set<Long> cacheSet = new HashSet<>(rddToCache);
         int curStageNum = 0;
         for(Stage stage : stages) {
-            System.out.println("stage: " + ++curStageNum + "/" + stages.size());
+            System.out.print("stage: " + ++curStageNum + "/" + stages.size() + " ");
             // start accumulator
             stage.rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId)); // TODO: 按照rddId大小决定先后是否不妥
             for(int i = stage.rdds.size() - 1; i >= 0; i--) {
@@ -157,7 +157,7 @@ public class SimpleUtil {
                     if(curValue.size() != 0) {
                         if(curValue.get(curValue.size() - 1) != i + 1) {
                             System.out.println("============stage: " + stage.stageId + ", rdd: " + rddId + " before: " + curValue);
-                            System.out.println("============different value: " + (i + 1));
+//                            System.out.println("============different value: " + (i + 1));
                         }
                     }
                     curValue.add((double) i + 1);
@@ -210,6 +210,7 @@ public class SimpleUtil {
 //            }
             // end depth
         }
+        System.out.println();
         return representTime;
     }
 
@@ -320,6 +321,54 @@ public class SimpleUtil {
         }
         assert lastSize == 1;
         return resultStage;
+    }
+
+    public static RDD lastRDDOfStage(Stage stage) {
+        // 没有出边的RDD
+        Set<Long> rddIdWithOutDegree = new HashSet<>();
+        for(RDD rdd : stage.rdds) {
+            // TODO: 添加了别的stage中的rdd
+            rddIdWithOutDegree.addAll(rdd.rddParentIDs);
+        }
+        List<RDD> res = new ArrayList<>();
+        for(RDD rdd : stage.rdds) {
+            if(!rddIdWithOutDegree.contains(rdd.rddId)) {
+                res.add(rdd);
+            }
+        }
+        assert res.size() == 1;
+        return res.get(0);
+    }
+
+    public static double lastRDDTimeOfStage(Map<Long, RDD> rddMap, RDD lastRDD) {
+        // TODO: 究其目的，还是要计算最大深度，因此可优化·
+        double curValue = 1, max = Double.MIN_VALUE;
+        for(long parentId : lastRDD.rddParentIDs) {
+            if(rddMap.containsKey(parentId)) {
+                max = Math.max(max, lastRDDTimeOfStage(rddMap, rddMap.get(parentId)));
+            }
+        }
+        return max == Double.MIN_VALUE ? curValue : curValue + max;
+    }
+
+    public static double lastRDDTimeOfStageV2(Map<Long, RDD> rddMap, RDD lastRDD) {
+        // TODO: 这只是妥协版，当碰到实际时间时还是要采用dfs
+        int depth = 0;
+        Queue<Long> queue = new LinkedList<>();
+        queue.offer(lastRDD.rddId);
+        while(!queue.isEmpty()) {
+            int size = queue.size();
+            for(int i = 0; i < size; i++) {
+                RDD curRDD = rddMap.get(queue.poll());
+                for(long parentId : curRDD.rddParentIDs) {
+                    if(rddMap.containsKey(parentId)) {
+                        queue.offer(parentId);
+                    }
+                }
+            }
+            depth++;
+        }
+        return depth;
     }
 
     /**
@@ -456,6 +505,9 @@ public class SimpleUtil {
         int maxOrMinTime = isLong ? Integer.MIN_VALUE : Integer.MAX_VALUE;
         for(Long parentId : stage.parentIDs) {
             Stage parentStage = stageMap.get(parentId);
+            if(parentStage == null) {
+                continue;
+            }
             if((isLong && parentStage.rdds.size() > maxOrMinTime) ||
                     (!isLong && parentStage.rdds.size() < maxOrMinTime)) {
                 maxOrMinId = parentId;
@@ -483,6 +535,9 @@ public class SimpleUtil {
         int maxOrMinTime = isLong ? Integer.MIN_VALUE : Integer.MAX_VALUE;
         for(Long parentId : stage.parentIDs) {
             Stage parentStage = stageMap.get(parentId);
+            if(parentStage == null) {
+                continue;
+            }
             if((isLong && parentStage.rdds.size() > maxOrMinTime) ||
                     (!isLong && parentStage.rdds.size() < maxOrMinTime)) {
                 maxOrMinId = parentId;

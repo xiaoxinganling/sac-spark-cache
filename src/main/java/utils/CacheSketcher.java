@@ -10,6 +10,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
+@Deprecated
 public class CacheSketcher {
 
     public static Map<Long, Integer> generateRefPerStage(Stage stage) {
@@ -274,7 +275,7 @@ public class CacheSketcher {
         for(long l : choseRDD) {
             maxRDDId = Math.max(l, maxRDDId);
         }
-        UnionFind uf = new UnionFind((int) (maxRDDId + 1));
+        UnionFindUtil uf = new UnionFindUtil((int) (maxRDDId + 1));
         // end FIXME: it's only for SVM and TeraSort's `cover 2 more RDD` situation
         for(StageCompletedEvent sce : stages) {
             int coverRDDOfStage = rddsAreUsefulToStage(sce.stage, choseRDD);

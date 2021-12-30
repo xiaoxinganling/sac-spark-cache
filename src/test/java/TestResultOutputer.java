@@ -4,6 +4,7 @@ import entity.Stage;
 import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
 import org.junit.jupiter.api.Test;
+import sketch.StaticSketch;
 import utils.CacheSketcher;
 import utils.ResultOutputer;
 import utils.SimpleUtil;
@@ -174,8 +175,8 @@ public class TestResultOutputer {
             String fileName = "E:\\Google Chrome Download\\";
             String outputDir = "C:\\Users\\小小冰\\Desktop\\MasterLearning\\research\\毕业论文\\test_graph_viz\\";
             // CC, SVM, TeraSort
-//            String[] applicationName = {StaticSketch.applicationName[0], StaticSketch.applicationName[5], StaticSketch.applicationName[16]};
-//            String[] applicationPath = {StaticSketch.applicationPath[0], StaticSketch.applicationPath[5], StaticSketch.applicationPath[16]};
+//            String[] applicationName = {sketch.StaticSketch.applicationName[0], sketch.StaticSketch.applicationName[5], sketch.StaticSketch.applicationName[16]};
+//            String[] applicationPath = {sketch.StaticSketch.applicationPath[0], sketch.StaticSketch.applicationPath[5], sketch.StaticSketch.applicationPath[16]};
             String[] applicationName = StaticSketch.applicationName;
             String[] applicationPath = StaticSketch.applicationPath;
             for(int i = 0; i < applicationName.length; i++) {//applicationName.length
@@ -213,7 +214,7 @@ public class TestResultOutputer {
                             choseRDD.add(l);
                         }
                         ResultOutputer.writeCacheToTime(choseRDD, job, applicationName[j], applicationName[j] + "_job_" +
-                                job.jobId + "_key_path.csv");
+                                job.jobId + "_key_path.csv", stageList);
                     }
                 }
             }
@@ -235,7 +236,7 @@ public class TestResultOutputer {
                             choseRDD.add(l);
                         }
                         ResultOutputer.writeCacheToTime(choseRDD, job, applicationName[j], applicationName[j] + "_job_" +
-                                job.jobId + "_key_path_another.csv");
+                                job.jobId + "_key_path_another.csv", stageList);
                     }
                 }
             }
@@ -245,19 +246,19 @@ public class TestResultOutputer {
     // KEYPOINT
     @Test
     void testKeyPathForAllApplication() throws IOException {
-        if(new File("key_path_cdf_sum.csv").exists() || new File("key_path_cdf_detail.csv").exists()) {
-            return;
-        }
+//        if(new File("key_path_cdf_sum.csv").exists() || new File("key_path_cdf_detail.csv").exists()) {
+//            return;
+//        }
         String fileName = "E:\\Google Chrome Download\\";
         String[] applicationName = StaticSketch.applicationName;
         String[] applicationPath = StaticSketch.applicationPath;
         {
             for(int j = 0; j < applicationName.length; j++) {//applicationName.length
                 System.out.println("test application's : " + applicationName[j] + " key path");
-                if(new File(applicationName[j] + "_jobs_key_path.csv").exists()) {
-                    System.out.println("already exists!!!");
-                    continue;
-                } // TODO: need to recover
+//                if(new File(applicationName[j] + "_jobs_key_path.csv").exists()) {
+//                    System.out.println("already exists!!!");
+//                    continue;
+//                } // TODO: need to recover
 //                if(!applicationName[j].contains("spark_svm")) {
 //                    continue;
 //                }
@@ -275,7 +276,7 @@ public class TestResultOutputer {
                         long startTime = System.currentTimeMillis();
                         System.out.println("write " + applicationName[j] + ", job: " + job.jobId + " cache to time started!!! \n " +
                                 "estimated time: " + "2^" + toCacheInJob.size());
-                        ResultOutputer.writeCacheToTime(toCacheInJob, job, applicationName[j], "_jobs_key_path.csv");
+                        ResultOutputer.writeCacheToTime(toCacheInJob, job, applicationName[j], "_jobs_key_path.csv", stageList);
                         long endTime = System.currentTimeMillis();
                         System.out.println("write " + applicationName[j] + ", job: " + job.jobId + " cache to time done!!!");
                         System.out.println("actual time: " + (endTime - startTime)+ "ms");
@@ -382,7 +383,8 @@ public class TestResultOutputer {
                     actualStage.add(sce.stage.stageId);
                 }
                 int curJob = 0;
-                for(int j = 0; j < jobList.size(); j++) {
+//                for(int j = 0; j < jobList.size(); j++) { // KEYPONT 先算简单的
+                for(int j = jobList.size() - 1; j >= 0; j--) {
                     // [j, jobList.size() - 1]
                     System.out.println(applicationName[i] + ": " + ++curJob + "/" + jobList.size());
                     List<JobStartEvent> newJobList = jobList.subList(j, jobList.size());
@@ -403,7 +405,15 @@ public class TestResultOutputer {
                         }
                     }
                     System.out.println(rddToCache);
+                    System.out.println("estimated time: 2^" + rddToCache.size() + " job size: " + (jobList.size() - j));
+                    if(rddToCache.size() > 21) {
+                        System.out.println("skip start job_" + jobList.get(j).jobId + ", for 2^" + rddToCache.size());
+                        continue;
+                    }
+                    long startTime = System.currentTimeMillis();
                     ResultOutputer.writeTotalAndRepresentTime(newJobList, newStageList, rddToCache, applicationName[i]);
+                    long endTime = System.currentTimeMillis();
+                    System.out.println("actual time: " + (endTime - startTime) + "ms(2^" + rddToCache.size() + ", job size: " + (jobList.size() - j) + ")");
                 }
             }
         }
