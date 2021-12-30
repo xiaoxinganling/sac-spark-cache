@@ -1,23 +1,24 @@
 package simulator;
 
-import entity.RDD;
 import entity.Stage;
 import lombok.Data;
-import utils.SimpleUtil;
-import java.util.HashMap;
+import org.apache.log4j.Logger;
+import utils.CriticalPathUtil;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.Queue;
 
 @Data
 public class StageRunner {
 
-    public boolean isUsing;
+    private String stageRunnerId;
 
     private Queue<Stage> stageQueue;
 
-    public StageRunner() {
-        isUsing = false;
+    private Logger logger = Logger.getLogger(this.getClass());
+
+    public StageRunner(String stageRunnerId) {
+        logger.info(String.format("StageRunner [%s] is created.", stageRunnerId));
+        this.stageRunnerId = stageRunnerId;
         stageQueue = new LinkedList<>();
     }
 
@@ -26,6 +27,7 @@ public class StageRunner {
     }
 
     public void receiveStage(Stage stage) {
+        logger.info(String.format("StageRunner [%s] receives Stage [%d].", stageRunnerId, stage.stageId));
         stageQueue.offer(stage);
     }
 
@@ -33,18 +35,23 @@ public class StageRunner {
     public double runStages() {
         double res = 0;
         while(!stageQueue.isEmpty()) {
-            res += runTimeOfStage(stageQueue.poll());
+            Stage curStage = stageQueue.poll();
+            logger.info(String.format("StageRunner [%s] is running Stage [%d].", stageRunnerId, curStage.stageId));
+            double runTime = runTimeOfStage(curStage);
+            res += runTime;
+            logger.info(String.format("StageRunner [%s] has run Stage [%d] for [%f] s.", stageRunnerId, curStage.stageId, runTime));
         }
         return res;
     }
 
     private double runTimeOfStage(Stage stage) {
-        RDD lastRDD = SimpleUtil.lastRDDOfStage(stage);
-        Map<Long, RDD> rddMap = new HashMap<>();
-        for(RDD rdd : stage.rdds) {
-            rddMap.put(rdd.rddId, rdd);
-        }
-        return SimpleUtil.lastRDDTimeOfStage(rddMap, lastRDD);
+        return CriticalPathUtil.getLongestTimeOfStage(stage);
+//        RDD lastRDD = SimpleUtil.lastRDDOfStage(stage);
+//        Map<Long, RDD> rddMap = new HashMap<>();
+//        for(RDD rdd : stage.rdds) {
+//            rddMap.put(rdd.rddId, rdd);
+//        }
+//        return SimpleUtil.lastRDDTimeOfStage(rddMap, lastRDD);
     }
 
 }

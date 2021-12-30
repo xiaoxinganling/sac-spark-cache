@@ -3,14 +3,20 @@ package simulator;
 import entity.Job;
 import entity.Stage;
 import lombok.Data;
+import org.apache.log4j.Logger;
+
 import java.io.IOException;
 import java.util.*;
 
 @Data
 public class JobStageSubmitter {
 
+    private Logger logger = Logger.getLogger(this.getClass());
+
+    private String id;
+
     // 持有的job list
-    private List<Job> jobList;
+    public List<Job> jobList;
 
     // 当前提交的job下标
     private int curSubmittedJob;
@@ -21,7 +27,8 @@ public class JobStageSubmitter {
     // 当前提交的job中未提交的stage map
     private Map<Long, Stage> unSubmittedStageInCurJobMap;
 
-    public JobStageSubmitter(String application) {
+    public JobStageSubmitter(String id, String application) {
+        logger.info(String.format("JobSubmitter [%s] is created based on application [%s].", id, application));
         try {
             jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(application);
             curSubmittedJob = -1;
@@ -36,11 +43,13 @@ public class JobStageSubmitter {
      * 提交一次job的同时提交一次可用stage，后续伴随多次stage提交
      * @return
      */
-    private List<Stage> submitAvailableJob() {
+    public List<Stage> submitAvailableJob() {
         if(curSubmittedJob >= jobList.size() - 1) {
             return null;
         }
         curSubmittedJob++;
+        unSubmittedStageInCurJobMap = new HashMap<>();
+        logger.info(String.format("JobSubmitter [%s] is submitting Job [%d].", id, jobList.get(curSubmittedJob).jobId));
         for(Stage stage : jobList.get(curSubmittedJob).stages) {
             unSubmittedStageInCurJobMap.put(stage.stageId, stage);
         }
@@ -69,10 +78,14 @@ public class JobStageSubmitter {
                 stageToSubmit.add(stage);
             }
         }
+        StringBuilder toSubmitStr = new StringBuilder();
         for(Stage toSubmit : stageToSubmit) {
             submittedStageInCurJob.add(toSubmit.stageId);
             unSubmittedStageInCurJobMap.remove(toSubmit.stageId);
+            toSubmitStr.append(toSubmit.stageId).append(",");
         }
+        toSubmitStr.deleteCharAt(toSubmitStr.length() - 1);
+        logger.info(String.format("JobSubmitter [%s] is submitting Stages [%s].", id, toSubmitStr.toString()));
         return stageToSubmit;
     }
 
