@@ -6,9 +6,8 @@ import entity.Job;
 import entity.Stage;
 import entity.event.StageCompletedEvent;
 import sketch.StaticSketch;
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+
+import java.io.*;
 import java.util.*;
 
 public class JobGenerator {
@@ -41,6 +40,18 @@ public class JobGenerator {
      * @throws IOException
      */
     public static List<Job> generateJobsWithFilteredStagesOfApplication(String fileName) throws IOException {
+        String newFileName = fileName + "_new";
+        if(new File(newFileName).exists()) {
+            List<Job> resList = new ArrayList<>();
+            BufferedReader br = new BufferedReader(new FileReader(newFileName));
+            String line;
+            while((line = br.readLine()) != null) {
+                Job curJob = JSON.toJavaObject(JSONObject.parseObject(line), Job.class);
+                resList.add(curJob);
+            }
+            br.close();
+            return resList;
+        }
         List<Job> jobList = new ArrayList<>();
         Set<Long> actualStageIds = new HashSet<>();
         BufferedReader br = new BufferedReader(new FileReader(fileName));
@@ -57,14 +68,22 @@ public class JobGenerator {
         br.close();
         for(Job job : jobList) {
              List<Stage> filteredStageList = new ArrayList<>();
+             List<Long> stageIds = new ArrayList<>();
              for(Stage stage : job.stages) {
                  if(actualStageIds.contains(stage.stageId)) {
                      // KEYPOINT: Stage 无重复
                      filteredStageList.add(stage);
+                     stageIds.add(stage.stageId);
                  }
              }
              job.stages = filteredStageList;
+             job.stageIds = stageIds;
         }
+        BufferedWriter bw = new BufferedWriter(new FileWriter(newFileName));
+        for(Job job : jobList) {
+            bw.write(JSON.toJSON(job).toString() + "\n");
+        }
+        bw.close();
         return jobList;
     }
 }

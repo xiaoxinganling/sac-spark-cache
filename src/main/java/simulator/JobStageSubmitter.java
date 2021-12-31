@@ -28,8 +28,9 @@ public class JobStageSubmitter {
     private Map<Long, Stage> unSubmittedStageInCurJobMap;
 
     public JobStageSubmitter(String id, String application) {
-        logger.info(String.format("JobSubmitter [%s] is created based on application [%s].", id, application));
+        logger.info(String.format("JobSubmitter [%s] is created based on application [%s].", id, id));
         try {
+            this.id = id;
             jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(application);
             curSubmittedJob = -1;
             submittedStageInCurJob = null;
