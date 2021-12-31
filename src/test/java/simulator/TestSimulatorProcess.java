@@ -28,4 +28,12 @@ class TestSimulatorProcess {
         SimulatorProcess.processWithNoCache(applicationName, applicationPath);
     }
 
+    @Test
+    void testProcessWithCache() {
+        String[] fileNames = {fileName + StaticSketch.applicationPath[5]};
+        String[] applicationNames = {applicationName[5]}; // svm 5
+        SimulatorProcess.processWithCache(applicationNames, fileNames);
+//        SimulatorProcess.processWithCache(applicationName, applicationPath);
+    }
+
 }

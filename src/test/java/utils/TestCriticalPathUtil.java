@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import static org.junit.jupiter.api.Assertions.*;
 
 class TestCriticalPathUtil {
 
@@ -40,7 +39,7 @@ class TestCriticalPathUtil {
                 RDD lastRDD = SimpleUtil.lastRDDOfStage(sce.stage);
                 logger.info("rdd size in Stage——" + sce.stage.stageId + ": " + rddMap.size());
 //                logger.info(curStage + "/" + stageList.size() + ": " + sce.stage.stageId + "——" + SimpleUtil.lastRDDTimeOfStage(rddMap, lastRDD));
-                logger.info(curStage + "/" + stageList.size() + ": " + sce.stage.stageId + "——" + CriticalPathUtil.getLongestTimeOfStage(sce.stage));
+                logger.info(curStage + "/" + stageList.size() + ": " + sce.stage.stageId + "——" + CriticalPathUtil.getLongestTimeOfStage(sce.stage, null));
             }
         }
     }

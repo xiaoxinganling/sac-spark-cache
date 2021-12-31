@@ -2,6 +2,7 @@ package utils;
 
 import entity.RDD;
 import entity.Stage;
+import simulator.CacheSpace;
 
 import java.util.*;
 
@@ -134,24 +135,32 @@ public class CriticalPathUtil {
         return max;
     }
 
-    public static double getLongestTimeOfStage(Stage stage) {
+    public static double getLongestTimeOfStage(Stage stage, CacheSpace cacheSpace) {
         // List of graph edges as per above diagram
         Set<Long> rddIdSet = new HashSet<>();
-        for(RDD rdd : stage.rdds) {
-            rddIdSet.add(rdd.rddId);
-        }
-        List<Edge> edges = new ArrayList<>();
         long maxId = 0;
         for(RDD rdd : stage.rdds) {
+            rddIdSet.add(rdd.rddId);
             maxId = Math.max(maxId, rdd.rddId);
+        }
+        List<Edge> edges = new ArrayList<>();
+        for(RDD rdd : stage.rdds) {
+            if(cacheSpace != null && cacheSpace.rddInCacheSpace(rdd.rddId)) {
+                continue;
+            }
+            int rddParentSize = 0;
             for(long parentId : rdd.rddParentIDs) {
                 if(rddIdSet.contains(parentId)) {
                     edges.add(new Edge(rdd.rddId.intValue(), (int) parentId, 1));
+                    rddParentSize++;
                 }
+            }
+            if(rddParentSize == 0) {
+                edges.add(new Edge(rdd.rddId.intValue(), (int) maxId + 1, 1));
             }
         }
 
-        int N = (int) maxId + 1;
+        int N = (int) maxId + 2;
 
         // create a graph from given edges
         Graph graph = new Graph(edges, N);
@@ -159,7 +168,7 @@ public class CriticalPathUtil {
         int source = SimpleUtil.lastRDDOfStage(stage).rddId.intValue();
 
         // find longest distance of all vertices from given source
-        return findLongestDistance(graph, source, N) + 1; // add initial compute time
+        return findLongestDistance(graph, source, N); // add initial compute time
     }
 
     public static void main(String[] args) {

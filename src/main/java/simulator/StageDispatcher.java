@@ -24,6 +24,7 @@ public class StageDispatcher {
         }
     }
 
+    // dispatch一次就run一次
     public void dispatchStage(List<Stage> submittedStage) {
         // 选择isUsing = false的Stage Runner
         // 如果所有Stage Runner已满，则按照轮询的方式为每个Stage Runner分配Stage
@@ -58,6 +59,18 @@ public class StageDispatcher {
         }
         logger.info(String.format("StageDispatcher [%s] has instructed StageRunner to run Stages for [%f]s.",
                 stageDispatcherId, lastTime));
+        return lastTime;
+    }
+
+    public double runStagesWithCacheSpace(CacheSpace cacheSpace) {
+        logger.info(String.format("StageDispatcher [%s] is instructing StageRunner to run Stages with CacheSpace [%s].",
+                stageDispatcherId, cacheSpace.getRddIds()));
+        double lastTime = 0;
+        for(StageRunner sr : stageRunners) {
+            lastTime = Math.max(lastTime, sr.runStagesWithCacheSpace(cacheSpace));
+        }
+        logger.info(String.format("StageDispatcher [%s] has instructed StageRunner to run Stages with CacheSpace [%s] for [%f]s.",
+                stageDispatcherId, cacheSpace.getRddIds(), lastTime));
         return lastTime;
     }
 

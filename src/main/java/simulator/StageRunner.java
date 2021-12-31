@@ -39,13 +39,13 @@ public class StageRunner {
             logger.info(String.format("StageRunner [%s] is running Stage [%d].", stageRunnerId, curStage.stageId));
             double runTime = runTimeOfStage(curStage);
             res += runTime;
-            logger.info(String.format("StageRunner [%s] has run Stage [%d] for [%f] s.", stageRunnerId, curStage.stageId, runTime));
+            logger.info(String.format("StageRunner [%s] has run Stage [%d] for [%f]s.", stageRunnerId, curStage.stageId, runTime));
         }
         return res;
     }
 
     private double runTimeOfStage(Stage stage) {
-        return CriticalPathUtil.getLongestTimeOfStage(stage);
+        return CriticalPathUtil.getLongestTimeOfStage(stage, null);
 //        RDD lastRDD = SimpleUtil.lastRDDOfStage(stage);
 //        Map<Long, RDD> rddMap = new HashMap<>();
 //        for(RDD rdd : stage.rdds) {
@@ -53,5 +53,20 @@ public class StageRunner {
 //        }
 //        return SimpleUtil.lastRDDTimeOfStage(rddMap, lastRDD);
     }
+
+    public double runStagesWithCacheSpace(CacheSpace cacheSpace) {
+        double res = 0;
+        while(!stageQueue.isEmpty()) {
+            Stage curStage = stageQueue.poll();
+            logger.info(String.format("StageRunner [%s] is running Stage [%d] with CacheSpace [%s].",
+                    stageRunnerId, curStage.stageId, cacheSpace.getRddIds()));
+            double runTime = CriticalPathUtil.getLongestTimeOfStage(curStage, cacheSpace);
+            res += runTime;
+            logger.info(String.format("StageRunner [%s] has run Stage [%d] with CacheStage [%s] for [%f]s.",
+                    stageRunnerId, curStage.stageId, cacheSpace.getRddIds(), runTime));
+        }
+        return res;
+    }
+
 
 }
