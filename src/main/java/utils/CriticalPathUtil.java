@@ -144,7 +144,7 @@ public class CriticalPathUtil {
         }
         List<Edge> edges = new ArrayList<>();
         for(RDD rdd : stage.rdds) {
-            if(cacheSpace != null && cacheSpace.rddInCacheSpace(rdd.rddId)) {
+            if(cacheSpace != null && cacheSpace.rddInCacheSpace(rdd.rddId, true)) {
                 continue;
             }
             int rddParentSize = 0;

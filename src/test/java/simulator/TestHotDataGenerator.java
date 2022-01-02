@@ -45,4 +45,14 @@ class TestHotDataGenerator {
         }
     }
 
+    @Test
+    void testProposeCacheSpaceSize() throws IOException {
+        String[] fileNames = {fileName + StaticSketch.applicationPath[5]};
+        String[] applicationNames = {applicationName[5]}; // svm 5
+        for (int i = 0; i < fileNames.length; i++) {
+            List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileNames[i]);
+            HotDataGenerator.proposeCacheSpaceSize(applicationNames[i], HotDataGenerator.hotRDD(applicationNames[i], jobList));
+        }
+    }
+
 }

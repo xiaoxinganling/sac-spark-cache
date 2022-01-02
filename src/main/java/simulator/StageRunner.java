@@ -97,7 +97,7 @@ public class StageRunner {
             // after running stage, add data into CacheSpace
             curStage.rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId));
             for(RDD rdd : curStage.rdds) {
-                if (hotRDDIdSet.contains(rdd.rddId) && !cacheSpace.getCachedRDDIds().contains(rdd.rddId)) { // fix bug of repeatedly adding
+                if (hotRDDIdSet.contains(rdd.rddId) && !cacheSpace.rddInCacheSpace(rdd.rddId, false)) { // fix bug of repeatedly adding
                     cacheSpace.addRDD(rdd);
                 }
             }

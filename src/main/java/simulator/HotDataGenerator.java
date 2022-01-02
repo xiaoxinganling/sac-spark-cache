@@ -81,4 +81,22 @@ public class HotDataGenerator {
         return resRDD;
     }
 
+
+    /**
+     * 建议的CacheSpace大小，默认为所有hot data size / 2（向上取整）
+     * @param application: for log only
+     * @param hotData
+     * @return
+     */
+    public static long proposeCacheSpaceSize(String application, List<RDD> hotData) {
+        long totalSize = 0;
+        for (RDD rdd : hotData) {
+            totalSize += rdd.partitionNum;
+//            System.out.println(rdd.rddId + " -> " + rdd.partitionNum);
+        }
+        long proposeSize = (totalSize & 0x1) == 0 ? totalSize / 2 : totalSize / 2 + 1;
+        logger.info(String.format("HotDataGenerator: Proposed CacheSpace size for [%s] is [%d].", application, proposeSize));
+        return proposeSize;
+    }
+
 }

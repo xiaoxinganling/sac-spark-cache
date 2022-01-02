@@ -2,6 +2,7 @@ package simulator;
 
 import entity.RDD;
 import org.apache.log4j.Logger;
+import utils.ds.ReplaceUtil;
 
 import java.util.*;
 
@@ -16,6 +17,8 @@ public class CacheSpace {
     private ReplacePolicy policy;
 
     private Queue<RDD> containRDDs;
+
+//    private ReplaceUtil replaceUtil; TODO: to combine all replace algorithms
 
     public Set<Long> getCachedRDDIds() {
         return cachedRDDIds;
@@ -36,17 +39,19 @@ public class CacheSpace {
                 totalSize, policy));
     }
 
-    public boolean rddInCacheSpace(long rddId) {
+    public boolean rddInCacheSpace(long rddId, boolean isHit) {
         boolean cacheHit = cachedRDDIds.contains(rddId);
-        if(cacheHit) {
-            logger.info(String.format("CacheSpace: cache hit RDD [%d].", rddId));
-        }else{
+        if(isHit) {
+            if(cacheHit) {
+                logger.info(String.format("CacheSpace: cache hit RDD [%d].", rddId));
+            }else{
 //            logger.info(String.format("CacheSpace: cache miss RDD [%d].", rddId));
+            }
         }
         return cacheHit;
     }
 
-    public void addRDD(RDD rdd) {
+    public boolean addRDD(RDD rdd) {
         // TODO: implement them
         if(policy == ReplacePolicy.LRU) {
 
@@ -59,7 +64,7 @@ public class CacheSpace {
         }else if(policy == ReplacePolicy.DP) {
 
         }else{
-            while(cachedRDDIds.size() > 0 && totalSize - curSize < rdd.partitionNum) {
+            while(containRDDs.size() > 0 && totalSize - curSize < rdd.partitionNum) {
                 RDD rddToDelete = containRDDs.poll(); // fix: [2, 3] 10不删2，而是3，这不是FIFO
                 containRDDs.remove(rddToDelete);
                 cachedRDDIds.remove(rddToDelete.rddId);
@@ -70,17 +75,20 @@ public class CacheSpace {
             if(totalSize - curSize < rdd.partitionNum) {
                 logger.info(String.format("CacheSpace: ignore RDD [%d] with size [%d], current size [%d / %d].",
                         rdd.rddId, rdd.partitionNum, curSize, totalSize));
+                return false;
             }else{
                 containRDDs.offer(rdd);
                 cachedRDDIds.add(rdd.rddId);
                 curSize += rdd.partitionNum;
                 logger.info(String.format("CacheSpace: add RDD [%d] with size [%d], current size [%d / %d].",
                         rdd.rddId, rdd.partitionNum, curSize, totalSize));
+                return true;
             }
         }
 //        containRDDs.add(rdd);
 //        rddIds.add(rdd.rddId);
 //        totalSize -= rdd.memorySize;
+        return true;
     }
 
     public void clear(String newApplication) {
