@@ -179,7 +179,7 @@ public class CacheSketcher {
                 }
                 res.put(entry.getKey(), res.getOrDefault(entry.getKey(), 0) + entry.getValue());
             }
-            System.out.println("job: -> " + ++curJobSize + " / " + jobs.size());
+            // System.out.println("job: -> " + ++curJobSize + " / " + jobs.size());
         }
         return res;
     }

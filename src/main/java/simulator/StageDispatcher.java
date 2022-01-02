@@ -1,10 +1,13 @@
 package simulator;
 
+import entity.RDD;
 import entity.Stage;
 import lombok.Data;
 import org.apache.log4j.Logger;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Data
 public class StageDispatcher {
@@ -12,6 +15,14 @@ public class StageDispatcher {
     public String stageDispatcherId;
 
     private StageRunner[] stageRunners;
+
+    private CacheSpace cacheSpace;
+
+    public void setCurApplication(String curApplication) {
+        this.curApplication = curApplication;
+    }
+
+    private String curApplication;
 
     private Logger logger = Logger.getLogger(this.getClass());
 
@@ -22,6 +33,17 @@ public class StageDispatcher {
         for(int i = 0; i < runnerSize; i++) {
             stageRunners[i] = new StageRunner(String.format("SR-%s-%s", stageDispatcherId, i));
         }
+    }
+
+    public StageDispatcher(String stageDispatcherId, int runnerSize, CacheSpace cacheSpace) {
+        logger.info(String.format("StageDisPatcher [%s] is created with CacheSpace [%s].",
+                stageDispatcherId, cacheSpace.cacheSpaceId));
+        this.stageDispatcherId = stageDispatcherId;
+        stageRunners = new StageRunner[runnerSize];
+        for(int i = 0; i < runnerSize; i++) {
+            stageRunners[i] = new StageRunner(String.format("SR-%s-%s", stageDispatcherId, i), cacheSpace);
+        }
+        this.cacheSpace = cacheSpace;
     }
 
     // dispatch一次就run一次
@@ -62,16 +84,34 @@ public class StageDispatcher {
         return lastTime;
     }
 
-    public double runStagesWithCacheSpace(CacheSpace cacheSpace) {
-        logger.info(String.format("StageDispatcher [%s] is instructing StageRunner to run Stages with CacheSpace [%s].",
-                stageDispatcherId, cacheSpace.getRddIds()));
+    public double runStagesWithCacheSpace() {
+        logger.info(String.format("StageDispatcher [%s] is instructing StageRunner to run Stages with CacheSpace %s.",
+                stageDispatcherId, cacheSpace.getCachedRDDIds()));
         double lastTime = 0;
         for(StageRunner sr : stageRunners) {
             lastTime = Math.max(lastTime, sr.runStagesWithCacheSpace(cacheSpace));
         }
-        logger.info(String.format("StageDispatcher [%s] has instructed StageRunner to run Stages with CacheSpace [%s] for [%f]s.",
-                stageDispatcherId, cacheSpace.getRddIds(), lastTime));
+        logger.info(String.format("StageDispatcher [%s] has instructed StageRunner to run Stages with CacheSpace %s for [%f]s.",
+                stageDispatcherId, cacheSpace.getCachedRDDIds(), lastTime));
         return lastTime;
+    }
+
+    public void updateHotRDDOfStageRunners(List<RDD> hotRDD) {
+        Set<Long> hotRDDIdSet = new HashSet<>();
+        for(RDD rdd : hotRDD) {
+            hotRDDIdSet.add(rdd.rddId);
+        }
+        for (StageRunner sr : stageRunners) {
+            sr.setHotRDD(hotRDD);
+            sr.setHotRDDIdSet(hotRDDIdSet);
+            logger.info(String.format("StageDispatcher has updated hot RDD of StageRunner [%s] with %s.",
+                    sr.stageRunnerId, hotRDDIdSet));
+        }
+    }
+
+    public void clearCacheSpace() {
+        cacheSpace.clear(curApplication);
+        logger.info(String.format("StageDispatcher has clear CacheSpace for [%s].", curApplication));
     }
 
 }

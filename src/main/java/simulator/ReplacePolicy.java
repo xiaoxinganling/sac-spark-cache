@@ -7,4 +7,9 @@ public enum ReplacePolicy {
     MRD,
     DP,
     FIFO;
+
+    public static void main(String[] args) {
+        System.out.printf("%s", LRC);
+    }
+
 }

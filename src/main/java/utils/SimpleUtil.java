@@ -565,4 +565,18 @@ public class SimpleUtil {
         return Math.abs(source - newValue) / (double) source;
     }
 
+    public static Map<Long, RDD> rddMapOfApplication(List<JobStartEvent> jobList) {
+        Map<Long, RDD> rddMap = new HashMap<>();
+        for(JobStartEvent jse : jobList) {
+            for(Stage stage : jse.stages) {
+                for(RDD rdd : stage.rdds) {
+                    if(!rddMap.containsKey(rdd.rddId)) {
+                        rddMap.put(rdd.rddId, rdd);
+                    }
+                }
+            }
+        }
+        return rddMap;
+    }
+
 }

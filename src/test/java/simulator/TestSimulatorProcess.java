@@ -4,7 +4,6 @@ import org.apache.log4j.Logger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import sketch.StaticSketch;
-import static org.junit.jupiter.api.Assertions.*;
 
 class TestSimulatorProcess {
 
@@ -29,11 +28,19 @@ class TestSimulatorProcess {
     }
 
     @Test
-    void testProcessWithCache() {
-        String[] fileNames = {fileName + StaticSketch.applicationPath[5]};
-        String[] applicationNames = {applicationName[5]}; // svm 5
-        SimulatorProcess.processWithCache(applicationNames, fileNames);
-//        SimulatorProcess.processWithCache(applicationName, applicationPath);
+    void testProcessWithInitialCache() {
+//        String[] fileNames = {fileName + StaticSketch.applicationPath[5]};
+//        String[] applicationNames = {applicationName[5]}; // svm 5
+//        SimulatorProcess.processWithInitialCache(applicationNames, fileNames);
+        SimulatorProcess.processWithInitialCache(applicationName, applicationPath);
+    }
+
+    @Test
+    void testProcessWithRuntimeCache() {
+//        String[] fileNames = {fileName + StaticSketch.applicationPath[5]};
+//        String[] applicationNames = {applicationName[5]}; // svm 5
+//        SimulatorProcess.processWithRuntimeCache(applicationNames, fileNames);
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath);
     }
 
 }
