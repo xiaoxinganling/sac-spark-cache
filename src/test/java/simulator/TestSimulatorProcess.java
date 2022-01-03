@@ -36,11 +36,29 @@ class TestSimulatorProcess {
     }
 
     @Test
-    void testProcessWithRuntimeCache() {
-//        String[] fileNames = {fileName + StaticSketch.applicationPath[5]};
-//        String[] applicationNames = {applicationName[5]}; // svm 5
+    void testProcessWithRuntimeCacheIdeal() {
+//        String[] fileNames = {fileName + StaticSketch.applicationPath[15]};
+//        String[] applicationNames = {applicationName[15]}; // svm 5, triangle count 10, kmeans 12, decision_tree 14, pca 15
 //        SimulatorProcess.processWithRuntimeCache(applicationNames, fileNames);
-        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath);
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.FIFO, 1000000);
+    }
+
+    @Test
+    void testProcessWithRuntimeCacheFIFO() {
+//        String[] fileNames = {fileName + StaticSketch.applicationPath[15]};
+//        String[] applicationNames = {applicationName[15]}; // svm 5, triangle count 10, kmeans 12, decision_tree 14, pca 15
+//        SimulatorProcess.processWithRuntimeCache(applicationNames, fileNames);
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.FIFO, 20);
+    }
+
+    @Test
+    void testProcessWithRuntimeLRU() {
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.LRU, 20);
+    }
+
+    @Test
+    void testProcessWithRuntimeLFU() {
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.LFU, 20);
     }
 
 }

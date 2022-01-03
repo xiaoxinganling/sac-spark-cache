@@ -10,7 +10,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
-@Deprecated
 public class CacheSketcher {
 
     public static Map<Long, Integer> generateRefPerStage(Stage stage) {

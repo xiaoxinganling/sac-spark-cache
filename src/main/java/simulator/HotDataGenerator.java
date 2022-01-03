@@ -95,8 +95,8 @@ public class HotDataGenerator {
 //            System.out.println(rdd.rddId + " -> " + rdd.partitionNum);
         }
         long proposeSize = (totalSize & 0x1) == 0 ? totalSize / 2 : totalSize / 2 + 1;
-        logger.info(String.format("HotDataGenerator: Proposed CacheSpace size for [%s] is [%d].", application, proposeSize));
+        logger.info(String.format("HotDataGenerator: Proposed CacheSpace size for [%s] is [%d], average [%.2f].",
+                application, proposeSize, totalSize / (double) hotData.size()));
         return proposeSize;
     }
-
 }

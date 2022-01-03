@@ -73,8 +73,8 @@ public class SimulatorProcess {
         System.out.println(applicationTimeToPrint);
     }
 
-    public static void processWithRuntimeCache(String[] applicationNames, String[] fileNames) {
-        CacheSpace cacheSpace = new CacheSpace(20, ReplacePolicy.FIFO);
+    public static void processWithRuntimeCache(String[] applicationNames, String[] fileNames, ReplacePolicy policy, int cacheSpaceSize) {
+        CacheSpace cacheSpace = new CacheSpace(cacheSpaceSize, policy);
         StageDispatcher sd = new StageDispatcher("RUNTIME_CACHE", 4, cacheSpace);
         List<Double> applicationTimeToPrint = new ArrayList<>();
         for(int i = 0; i < applicationNames.length; i++) {
@@ -84,7 +84,7 @@ public class SimulatorProcess {
             // start updating hot RDD and CacheSpace
             sd.setCurApplication(application);
             List<RDD> hotData = HotDataGenerator.hotRDD(application, jss.jobList);
-            long proposedSize =  HotDataGenerator.proposeCacheSpaceSize(application, hotData); // TODO: do something for this size
+            long proposedSize =  HotDataGenerator.proposeCacheSpaceSize(application, hotData); // TODO: do something for the size
             sd.updateHotRDDOfStageRunners(hotData);
             sd.clearCacheSpace();
             // end updating
