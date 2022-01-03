@@ -34,10 +34,10 @@ public class LFUUtil extends ReplaceUtil {
     @Override
     public long addRDD(RDD rdd) {
         long key = rdd.rddId;
-        /* 若 key 已存在，修改对应的 val 即可 */ // TODO: 其实这段可以不要，不过还是保留语义吧
+        /* 若 key 已存在，修改对应的 val 即可 */ // TODO: 其实这段可以不要，不过还是保留语义吧 -> KEYPOINT: 这段还是保留好, 但是去除increaseFreq
         if (keyToVal.containsKey(key)) {
             // key 对应的 freq 加一
-            increaseFreq(key);
+//            increaseFreq(key);
             return 0;
         }
         // 新rdd

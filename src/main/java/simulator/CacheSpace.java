@@ -82,7 +82,7 @@ public class CacheSpace {
 //                            rdd.rddId, rdd.partitionNum, curSize, totalSize));
                     return false;
                 }// fix: remove unnecessary delete
-                while(totalSize - curSize < rdd.partitionNum) { // fix: `replaceUtil.getCachedRDDIds().size() > 0 && ` is not required
+                while(!getCachedRDDIds().contains(rdd.rddId) && totalSize - curSize < rdd.partitionNum) { // fix: `replaceUtil.getCachedRDDIds().size() > 0 && ` is not required
 //                    RDD rddToDelete = containRDDs.poll(); // fix: [2, 3] 10不删2，而是3，这不是FIFO
 //                containRDDs.remove(rddToDelete); // fix: 这里已经删除了
                     RDD rddToDelete = replaceUtil.deleteRDD(); // TODO check null
@@ -90,10 +90,11 @@ public class CacheSpace {
 //                    logger.info(String.format("CacheSpace: delete RDD [%d] with size [%d] by policy [%s], current size [%d / %d].",
 //                            rddToDelete.rddId, rddToDelete.partitionNum, policy, curSize, totalSize)); // fix: rdd.partitionNum -> rddToDelete.partitionNum
                 }
-                curSize += replaceUtil.addRDD(rdd);
+                long changedSize = replaceUtil.addRDD(rdd);
+                curSize += changedSize;
 //                logger.info(String.format("CacheSpace: add RDD [%d] with size [%d], current size [%d / %d].",
 //                        rdd.rddId, rdd.partitionNum, curSize, totalSize));
-                return true;
+                return changedSize > 0;
             }
             case LRC:
                 break;

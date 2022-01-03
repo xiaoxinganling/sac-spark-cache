@@ -15,6 +15,9 @@ public class LRUUtil extends ReplaceUtil{
 
     @Override
     public long addRDD(RDD rdd) {
+        if(cachedRDDIds.contains(rdd.rddId)) {
+            return 0;
+        }
         memoryMap.put(rdd.rddId, rdd);
         cachedRDDIds.add(rdd.rddId);
         return rdd.partitionNum;

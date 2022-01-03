@@ -18,6 +18,9 @@ public class FIFOUtil extends ReplaceUtil {
 
     @Override
     public long addRDD(RDD rdd) {
+        if(cachedRDDIds.contains(rdd.rddId)) {
+            return 0;
+        }
         containRDDs.offer(rdd);
         cachedRDDIds.add(rdd.rddId);
         return rdd.partitionNum;
