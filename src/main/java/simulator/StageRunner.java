@@ -21,17 +21,10 @@ public class StageRunner {
 
     private Set<Long> hotRDDIdSet;
 
-    public List<RDD> getHotRDD() {
-        return hotRDD;
-    }
-
     public void setHotRDD(List<RDD> hotRDD) {
         this.hotRDD = hotRDD;
     }
 
-    public Set<Long> getHotRDDIdSet() {
-        return hotRDDIdSet;
-    }
 
     public void setHotRDDIdSet(Set<Long> hotRDDIdSet) {
         this.hotRDDIdSet = hotRDDIdSet;
@@ -88,6 +81,7 @@ public class StageRunner {
     public double runStagesWithCacheSpace(CacheSpace cacheSpace) {
         double res = 0;
         while(!stageQueue.isEmpty()) {
+            // run every stage of StageRunner
             Stage curStage = stageQueue.poll();
             Set<Long> beforeSet = new HashSet<>(cacheSpace.getCachedRDDIds());
             logger.info(String.format("StageRunner [%s] is running Stage [%d] with CacheSpace %s.",
@@ -95,13 +89,16 @@ public class StageRunner {
             double runTime = CriticalPathUtil.getLongestTimeOfStage(curStage, cacheSpace);
             double contrastRunTime = CriticalPathUtil.getLongestTimeOfStage(curStage, null);// TODO: to delete for performance
             // after running stage, add data into CacheSpace
-            curStage.rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId));
+            curStage.rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId)); // TODO: check sorting effects
             for(RDD rdd : curStage.rdds) {
                 if (hotRDDIdSet.contains(rdd.rddId)) { // 不要重复添加 fix bug of repeatedly adding ` && !cacheSpace.getCachedRDDIds().contains(rdd.rddId)`
                     cacheSpace.addRDD(rdd);
                 }
             }
             // end add
+            // after running stage, update MRDUtil's distance
+            cacheSpace.changeAfterStageRun(curStage);
+            // end update
             res += runTime;
             logger.info(String.format("StageRunner [%s] has run Stage [%d] for [%f]s, contrast for [%f]s, CacheSpace %s -> %s.",
                     stageRunnerId, curStage.stageId, runTime, contrastRunTime, beforeSet, cacheSpace.getCachedRDDIds()));

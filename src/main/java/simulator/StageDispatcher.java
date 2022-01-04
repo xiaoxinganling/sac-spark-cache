@@ -1,5 +1,6 @@
 package simulator;
 
+import entity.Job;
 import entity.RDD;
 import entity.Stage;
 import lombok.Data;
@@ -18,13 +19,19 @@ public class StageDispatcher {
 
     private CacheSpace cacheSpace;
 
-    public void setCurApplication(String curApplication) {
-        this.curApplication = curApplication;
-    }
-
     private String curApplication;
 
+    private List<Job> curJobList;
+
+    private List<RDD> curHotData;
+
     private Logger logger = Logger.getLogger(this.getClass());
+
+    public void prepareForNewApplication(String curApplication, List<Job> curJobList, List<RDD> curHotData) {
+        this.curApplication = curApplication;
+        this.curJobList = curJobList;
+        this.curHotData = curHotData;
+    }
 
     public StageDispatcher(String stageDispatcherId, int runnerSize) {
         logger.info(String.format("StageDisPatcher [%s] is created.", stageDispatcherId));
@@ -96,22 +103,22 @@ public class StageDispatcher {
         return lastTime;
     }
 
-    public void updateHotRDDOfStageRunners(List<RDD> hotRDD) {
+    public void initializeHotRDDOfStageRunners() {
         Set<Long> hotRDDIdSet = new HashSet<>();
-        for(RDD rdd : hotRDD) {
+        for(RDD rdd : curHotData) {
             hotRDDIdSet.add(rdd.rddId);
         }
         for (StageRunner sr : stageRunners) {
-            sr.setHotRDD(hotRDD);
+            sr.setHotRDD(curHotData);
             sr.setHotRDDIdSet(hotRDDIdSet);
             logger.info(String.format("StageDispatcher has updated hot RDD of StageRunner [%s] with %s.",
                     sr.stageRunnerId, hotRDDIdSet));
         }
     }
 
-    public void clearCacheSpace() {
-        cacheSpace.clear(curApplication);
-        logger.info(String.format("StageDispatcher has clear CacheSpace for [%s].", curApplication));
+    public void initializeCacheSpace() {
+        cacheSpace.prepare(this.curApplication, curJobList, curHotData);
+        logger.info(String.format("StageDispatcher has clear CacheSpace for [%s].", this.curApplication));
     }
 
 }

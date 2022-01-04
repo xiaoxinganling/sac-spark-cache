@@ -1,11 +1,10 @@
 package simulator;
 
+import entity.Job;
 import entity.RDD;
+import entity.Stage;
 import org.apache.log4j.Logger;
-import utils.ds.FIFOUtil;
-import utils.ds.LFUUtil;
-import utils.ds.LRUUtil;
-import utils.ds.ReplaceUtil;
+import utils.ds.*;
 
 import java.util.*;
 
@@ -42,8 +41,10 @@ public class CacheSpace {
                 replaceUtil = new LFUUtil();
                 break;
             case LRC:
+                replaceUtil = new LRCUtil();
                 break;
             case MRD:
+                replaceUtil = new MRDUtil();
                 break;
             case DP:
                 break;
@@ -97,9 +98,39 @@ public class CacheSpace {
                 return changedSize > 0;
             }
             case LRC:
-                break;
+            {
+                // 首先更新hotDataRC
+                LRCUtil lrcUtil = (LRCUtil) replaceUtil;
+                lrcUtil.updateHotDataRefCountByRDD(rdd);
+                // 1. 无需添加
+                // 2. 需添加，总大小不够
+                if (getCachedRDDIds().contains(rdd.rddId) || totalSize < rdd.partitionNum) {
+                    return false;
+                }
+                // 3. 需添加，需决策
+                curSize += lrcUtil.addRDD(rdd);
+                lrcUtil.sortRDDByRC();
+                while (curSize > totalSize) {
+                    curSize -= lrcUtil.deleteRDD().partitionNum; // 可保证`lrcUtil.deleteRDD()`!=null
+                }
+                return true;
+            }
             case MRD:
-                break;
+            {
+                MRDUtil mrdUtil = (MRDUtil) replaceUtil;
+                // 1. 无需添加
+                // 2. 需添加，总大小不够
+                if (getCachedRDDIds().contains(rdd.rddId) || totalSize < rdd.partitionNum) {
+                    return false;
+                }
+                // 3. 需添加，需决策
+                curSize += mrdUtil.addRDD(rdd);
+                mrdUtil.sortRDDByDistance();
+                while (curSize > totalSize) {
+                    curSize -= mrdUtil.deleteRDD().partitionNum; // 可保证`mrdUtil.deleteRDD()`!=null
+                }
+                return true;
+            }
             case DP:
                 break;
             default:
@@ -107,11 +138,27 @@ public class CacheSpace {
         return true; // just for return
     }
 
-    public void clear(String newApplication) {
+    public void prepare(String newApplication, List<Job> jobList, List<RDD> hotData) {
         curSize = 0;
         replaceUtil.clear();
-        logger.info(String.format("CacheSpace: clear RDDs because of [%s], current size [%d / %d].",
-                newApplication, curSize, totalSize));
+        if (policy == ReplacePolicy.LRC) {
+            LRCUtil lrcUtil = (LRCUtil) replaceUtil;
+            lrcUtil.setHotDataRC(ReferenceCountManager.generateRefCountForHotData(jobList, hotData));
+            lrcUtil.setRddIdToActionNum(ReferenceCountManager.generateRDDIdToActionNum(jobList));
+        } else if (policy == ReplacePolicy.MRD) {
+            MRDUtil mrdUtil = (MRDUtil) replaceUtil;
+            mrdUtil.setRddToStageIds(RDDStageInfoManager.generateDistanceForHotData(jobList, hotData));
+        }
+        logger.info(String.format("CacheSpace: prepare for new application [%s].", newApplication));
+    }
+
+    public void changeAfterStageRun(Stage stage) {
+        if (policy == ReplacePolicy.MRD) {
+            MRDUtil mrdUtil = (MRDUtil) replaceUtil;
+            mrdUtil.updateRDDDistanceByStage(stage);
+            logger.info(String.format("CacheSpace: update RDD Distance of policy [%s] after running Stage [%d].",
+                    policy, stage.stageId));
+        }
     }
 
 }

@@ -173,7 +173,7 @@ public class CacheSketcher {
         int curJobSize = 0;
         for(JobStartEvent job : jobs) {
             for(Map.Entry<Long, Integer> entry : generateRDDDirectRefPerJob(job, actualStages).entrySet()) {
-                if(entry.getValue().equals(0)) {
+                if(entry.getValue().equals(0)) { //  add action to this RDD
                     entry.setValue(1);
                 }
                 res.put(entry.getKey(), res.getOrDefault(entry.getKey(), 0) + entry.getValue());

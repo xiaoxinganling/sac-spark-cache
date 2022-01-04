@@ -143,7 +143,7 @@ public class CriticalPathUtil {
             maxId = Math.max(maxId, rdd.rddId);
         }
         List<Edge> edges = new ArrayList<>();
-        stage.rdds.sort((o1, o2) -> (int) (o2.rddId - o1.rddId)); // 降序
+        stage.rdds.sort((o1, o2) -> (int) (o2.rddId - o1.rddId)); // TODO: 这里存在降序降序
         for(RDD rdd : stage.rdds) {
             if(cacheSpace != null && cacheSpace.rddInCacheSpace(rdd.rddId)) {
                 continue;

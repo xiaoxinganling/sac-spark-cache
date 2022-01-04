@@ -9,13 +9,15 @@ class TestSimulatorProcess {
 
     String fileName = "E:\\Google Chrome Download\\";
     String[] applicationName = StaticSketch.applicationName;
-    String[] applicationPath = new String[StaticSketch.applicationPath.length];
+    String[] applicationPath = StaticSketch.applicationPath;
+//    String[] applicationPath = {StaticSketch.applicationPath[5]};
+//    String[] applicationName = {StaticSketch.applicationName[5]}; // svm 5, triangle count 10, kmeans 12, decision_tree 14, pca 15
     Logger logger = Logger.getLogger(TestSimulatorProcess.class);
 
     @BeforeEach
     void init() {
         for(int i = 0; i < applicationPath.length; i++) {
-            applicationPath[i] = fileName + StaticSketch.applicationPath[i];
+            applicationPath[i] = fileName + applicationPath[i] ;
         }
     }
 
@@ -59,6 +61,16 @@ class TestSimulatorProcess {
     @Test
     void testProcessWithRuntimeLFU() {
         SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.LFU, 20);
+    }
+
+    @Test
+    void testProcessWithRuntimeLRC() {
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.LRC, 20);
+    }
+
+    @Test
+    void testProcessWithRuntimeMRD() {
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.MRD, 20);
     }
 
 }

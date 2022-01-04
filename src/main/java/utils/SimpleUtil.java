@@ -579,4 +579,27 @@ public class SimpleUtil {
         return rddMap;
     }
 
+    /**
+     * 返回stage的rdd id set
+     * @param stage
+     * @return
+     */
+    public static Set<Long> rddIdSetOfStage(Stage stage) {
+        Set<Long> res = new HashSet<>();
+        for (RDD rdd : stage.rdds) {
+            res.add(rdd.rddId);
+        }
+        return res;
+    }
+
+    public static Set<Long> cachedRDDIdSetInStage(Stage stage, Set<Long> hotDataIds) {
+        Set<Long> res = new HashSet<>();
+        for (RDD rdd : stage.rdds) {
+            if (hotDataIds.contains(rdd.rddId)) {
+                res.add(rdd.rddId);
+            }
+        }
+        return res;
+    }
+
 }

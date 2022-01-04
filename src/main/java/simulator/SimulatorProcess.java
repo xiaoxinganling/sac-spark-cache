@@ -80,14 +80,14 @@ public class SimulatorProcess {
         for(int i = 0; i < applicationNames.length; i++) {
             String application = applicationNames[i];
             String applicationFileName = fileNames[i];
+            // get job list and hot data
             JobStageSubmitter jss = new JobStageSubmitter(application, applicationFileName);
-            // start updating hot RDD and CacheSpace
-            sd.setCurApplication(application);
             List<RDD> hotData = HotDataGenerator.hotRDD(application, jss.jobList);
             long proposedSize =  HotDataGenerator.proposeCacheSpaceSize(application, hotData); // TODO: do something for the size
-            sd.updateHotRDDOfStageRunners(hotData);
-            sd.clearCacheSpace();
-            // end updating
+            // prepare for running application, StageDispatcher -> (StageRunner | CacheSpace)
+            sd.prepareForNewApplication(application, jss.jobList, hotData);
+            sd.initializeHotRDDOfStageRunners();
+            sd.initializeCacheSpace();
             double applicationTotalTime = 0;
             for(Job job : jss.jobList) {
                 double jobTotalTime = 0;
