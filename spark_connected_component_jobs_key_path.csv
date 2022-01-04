@@ -78,3 +78,31 @@ spark_connected_component: job_4
 ,516096,516096,90112,8896512,187168,179776,30048,4171904,328928,336320,60064,4724608,record sum
 
 
+spark_connected_component: job_1
+,960,960,416,1472,440,440,184,712,520,520,232,760,record sum
+
+
+spark_connected_component: job_1
+,960,960,416,1472,440,440,184,712,520,520,232,760,record sum
+
+
+spark_connected_component: job_1
+,960,960,416,1472,440,440,184,712,520,520,232,760,record sum
+
+
+spark_connected_component: job_1
+,960,960,416,1472,440,440,184,712,520,520,232,760,record sum
+
+
+spark_connected_component: job_2
+,8960,8960,2816,11008,3184,3024,2864,3728,5776,5936,-48,7280,record sum
+
+
+spark_connected_component: job_3
+,88064,88064,28672,110592,24544,23328,21984,28832,63520,64736,6688,81760,record sum
+
+
+spark_connected_component: job_4
+,208896,208896,69632,266240,64032,61632,58912,72576,144864,147264,10720,193664,record sum
+
+
