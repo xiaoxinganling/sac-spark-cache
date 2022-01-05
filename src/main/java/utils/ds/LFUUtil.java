@@ -2,9 +2,7 @@ package utils.ds;
 
 import entity.RDD;
 
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.*;
 
 
 /**
@@ -79,6 +77,11 @@ public class LFUUtil extends ReplaceUtil {
         // 增加 key 对应的 freq
         increaseFreq(rddId);
         return keyToVal.get(rddId);
+    }
+
+    @Override
+    public Map getPriority() {
+        return keyToFreq;
     }
 
     private void increaseFreq(long key) {

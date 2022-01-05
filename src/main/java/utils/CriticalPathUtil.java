@@ -1,7 +1,9 @@
 package utils;
 
+import entity.Job;
 import entity.RDD;
 import entity.Stage;
+import org.omg.CORBA.INTERNAL;
 import simulator.CacheSpace;
 import java.util.*;
 
@@ -134,6 +136,68 @@ public class CriticalPathUtil {
         return max;
     }
 
+    private static double findLongestDistanceWithPath(Graph graph, int source, int N, Map<Long, Long> parentMap) {
+        // departure[] stores vertex number having its departure
+        // time equal to the index of it
+        int[] departure = new int[N];
+        Arrays.fill(departure, -1);
+
+        // stores vertex is discovered or not
+        boolean[] discovered = new boolean[N];
+        int time = 0;
+
+        // perform DFS on all undiscovered vertices
+        for (int i = 0; i < N; i++) {
+            if (!discovered[i]) {
+                time = DFS(graph, i, discovered, departure, time);
+            }
+        }
+
+        double[] cost = new double[N];
+        Arrays.fill(cost, Integer.MAX_VALUE);
+
+        cost[source] = 0;
+
+        // Process the vertices in topological order i.e. in order
+        // of their decreasing departure time in DFS
+        for (int i = N - 1; i >= 0; i--)
+        {
+            // for each vertex in topological order,
+            // relax cost of its adjacent vertices
+            int v = departure[i];
+            for (Edge e : graph.adjList.get(v))
+            {
+                // edge e from v to u having weight w
+                int u = e.dest;
+                double w = e.weight * -1;	// negative the weight of edge
+                // if the distance to the destination u can be shortened by
+                // taking the edge vu, then update cost to the new lower value
+                if (cost[v] != Integer.MAX_VALUE && cost[v] + w < cost[u]) {
+                    cost[u] = cost[v] + w;
+                    parentMap.put((long) u, (long) v);
+                }
+            }
+        }
+
+//        System.out.println("The longest distances from source vertex: " + source);
+        // print longest paths
+        double max = 0;
+        for (int i = 0; i < cost.length; i++) {
+//            if(cost[i] * -1 == -2147483647){
+//                System.out.printf("dist(%d, %d) = Infinity\n", source, i);
+//            }
+//            else{
+//                System.out.printf("dist(%d, %d) = %2d\n", source, i, cost[i] * -1);
+//            }
+            if(cost[i] != Integer.MAX_VALUE) {
+                max = Math.max(max, cost[i] * -1);
+                // System.out.printf("dist(%d, %d) = %2f\n", source, i, cost[i] * - 1);
+            }
+        }
+        return max;
+    }
+
+    // TODO: 这里是否要改呢？
     public static double getLongestTimeOfStage(Stage stage, CacheSpace cacheSpace) {
         // List of graph edges as per above diagram
         Set<Long> rddIdSet = new HashSet<>();
@@ -143,7 +207,7 @@ public class CriticalPathUtil {
             maxId = Math.max(maxId, rdd.rddId);
         }
         List<Edge> edges = new ArrayList<>();
-        stage.rdds.sort((o1, o2) -> (int) (o2.rddId - o1.rddId)); // TODO: 这里存在降序降序
+        stage.rdds.sort((o1, o2) -> (int) (o2.rddId - o1.rddId)); // TODO: 这里存在降序排序
         for(RDD rdd : stage.rdds) {
             if(cacheSpace != null && cacheSpace.rddInCacheSpace(rdd.rddId)) {
                 continue;
@@ -169,6 +233,55 @@ public class CriticalPathUtil {
 
         // find longest distance of all vertices from given source
         return findLongestDistance(graph, source, N); // add initial compute time
+    }
+
+    /**
+     * return <key,value> => <RDD, RDD.Parent>
+     * @param stage
+     * @param cacheSpace
+     * @return
+     */
+    public static Map<Long, Long> getLongestTimeOfStageWithPath(Stage stage, CacheSpace cacheSpace) {
+        // List of graph edges as per above diagram
+        Set<Long> rddIdSet = new HashSet<>();
+        long maxId = 0;
+        for(RDD rdd : stage.rdds) {
+            rddIdSet.add(rdd.rddId);
+            maxId = Math.max(maxId, rdd.rddId);
+        }
+        List<Edge> edges = new ArrayList<>();
+        stage.rdds.sort((o1, o2) -> (int) (o2.rddId - o1.rddId)); // TODO: 这里存在降序排序
+        for(RDD rdd : stage.rdds) {
+            if(cacheSpace != null && cacheSpace.rddInCacheSpace(rdd.rddId)) {
+                continue;
+            }
+            int rddParentSize = 0;
+            for(long parentId : rdd.rddParentIDs) {
+                if(rddIdSet.contains(parentId)) {
+                    edges.add(new Edge(rdd.rddId.intValue(), (int) parentId, 1));
+                    rddParentSize++;
+                }
+            }
+            if(rddParentSize == 0) {
+                edges.add(new Edge(rdd.rddId.intValue(), (int) maxId + 1, 1));
+            }
+        }
+
+        int N = (int) maxId + 2;
+
+        // create a graph from given edges
+        Graph graph = new Graph(edges, N);
+
+        int source = SimpleUtil.lastRDDOfStage(stage).rddId.intValue();
+
+        // find longest distance of all vertices from given source
+        Map<Long, Long> parentMap = new HashMap<>();
+        findLongestDistanceWithPath(graph, source, N, parentMap); // add initial compute time
+        return parentMap;
+    }
+
+    public static List<Stage> getKeyStagesOfJobListWithVisitedInfo(List<Job> jobList, Set<Long> visitedStages) {
+        return null;
     }
 
     public static void main(String[] args) {

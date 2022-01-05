@@ -12,6 +12,8 @@ public class SimulatorProcess {
 
     private static Logger logger = Logger.getLogger(SimulatorProcess.class);
 
+    public static long curJobId = -1;
+
     public static void processWithNoCache(String[] applicationNames, String[] fileNames) {
         StageDispatcher sd = new StageDispatcher("NO_CACHE", 4);
         List<Double> applicationTimeToPrint = new ArrayList<>();
@@ -90,6 +92,7 @@ public class SimulatorProcess {
             sd.initializeCacheSpace();
             double applicationTotalTime = 0;
             for(Job job : jss.jobList) {
+                curJobId = job.jobId; // for check
                 double jobTotalTime = 0;
                 sd.dispatchStage(jss.submitAvailableJob());
                 jobTotalTime += sd.runStagesWithCacheSpace();

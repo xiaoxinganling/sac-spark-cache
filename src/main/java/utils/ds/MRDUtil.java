@@ -30,7 +30,11 @@ public class MRDUtil extends ReplaceUtil{
 
     public void sortRDDByDistance() {
         // 保证minHeap里面永远有内容
-        containsRDDs.sort((o1, o2) -> (int) (rddToStageIds.get(o2.rddId).peek() - rddToStageIds.get(o1.rddId).peek()));
+//        containsRDDs.sort((o1, o2) -> (int) (rddToStageIds.get(o2.rddId).peek() - rddToStageIds.get(o1.rddId).peek()));
+        containsRDDs.sort((o1, o2) -> {
+            int distanceDiff = (int) (rddToStageIds.get(o2.rddId).peek() - rddToStageIds.get(o1.rddId).peek());
+            return distanceDiff == 0 ? (int) (o2.rddId - o1.rddId) : distanceDiff;
+        });
     }
 
     @Override
@@ -65,5 +69,15 @@ public class MRDUtil extends ReplaceUtil{
     @Override
     public RDD getRDD(long rddId) {
         return null; // MRD不必实现，仅限于LRU和LFU
+    }
+
+    @Override
+    public Map getPriority() {
+        Map<Long, Long> tmpMap = new HashMap<>();
+        for (Map.Entry<Long, PriorityQueue<Long>> entry : rddToStageIds.entrySet()) {
+            tmpMap.put(entry.getKey(), entry.getValue().peek());
+        }
+//        return rddToStageIds; // TODO: 考虑只取top？
+        return tmpMap;
     }
 }

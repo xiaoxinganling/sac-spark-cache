@@ -6,6 +6,7 @@ import lombok.Data;
 import org.apache.log4j.Logger;
 import utils.CriticalPathUtil;
 
+import java.io.IOException;
 import java.util.*;
 
 @Data
@@ -84,21 +85,35 @@ public class StageRunner {
             // run every stage of StageRunner
             Stage curStage = stageQueue.poll();
             Set<Long> beforeSet = new HashSet<>(cacheSpace.getCachedRDDIds());
+            Map beforePriority = new HashMap(cacheSpace.getPriority());
             logger.info(String.format("StageRunner [%s] is running Stage [%d] with CacheSpace %s.",
                     stageRunnerId, curStage.stageId, beforeSet));
-            double runTime = CriticalPathUtil.getLongestTimeOfStage(curStage, cacheSpace);
+            double runTime = CriticalPathUtil.getLongestTimeOfStage(curStage, cacheSpace); //run之前更新
             double contrastRunTime = CriticalPathUtil.getLongestTimeOfStage(curStage, null);// TODO: to delete for performance
+            // after running stage, update MRDUtil's distance and LRCUtil's reference count
+            cacheSpace.changeAfterStageRun(curStage);
+            // end update
             // after running stage, add data into CacheSpace
             curStage.rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId)); // TODO: check sorting effects
             for(RDD rdd : curStage.rdds) {
-                if (hotRDDIdSet.contains(rdd.rddId)) { // 不要重复添加 fix bug of repeatedly adding ` && !cacheSpace.getCachedRDDIds().contains(rdd.rddId)`
-                    cacheSpace.addRDD(rdd);
+                // LRC是将所有的rdd都执行add操作
+                if (hotRDDIdSet.contains(rdd.rddId) || cacheSpace.getPolicy() == ReplacePolicy.LRC) { // 不要重复添加 fix bug of repeatedly adding ` && !cacheSpace.getCachedRDDIds().contains(rdd.rddId)`
+                    // for check
+                    beforeSet = new HashSet<>(cacheSpace.getCachedRDDIds());
+                    cacheSpace.addRDD(rdd); // 原本的代码
+                    try {
+                        if (hotRDDIdSet.contains(rdd.rddId)) {
+                            ValidationUI.writeLine(SimulatorProcess.curJobId, curStage.stageId, rdd,
+                                    beforeSet, cacheSpace.getCachedRDDIds(), beforePriority, cacheSpace.getPolicy(), cacheSpace.getPriority());
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    // end check
+//                    cacheSpace.addRDD(rdd);
                 }
             }
             // end add
-            // after running stage, update MRDUtil's distance
-            cacheSpace.changeAfterStageRun(curStage);
-            // end update
             res += runTime;
             logger.info(String.format("StageRunner [%s] has run Stage [%d] for [%f]s, contrast for [%f]s, CacheSpace %s -> %s.",
                     stageRunnerId, curStage.stageId, runTime, contrastRunTime, beforeSet, cacheSpace.getCachedRDDIds()));

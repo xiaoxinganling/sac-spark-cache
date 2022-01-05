@@ -2,10 +2,7 @@ package utils.ds;
 
 import entity.RDD;
 
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 
 public class FIFOUtil extends ReplaceUtil {
 
@@ -49,6 +46,16 @@ public class FIFOUtil extends ReplaceUtil {
     @Override
     public RDD getRDD(long rddId) {
         return null; // KEYPOINT: no need to implement
+    }
+
+    @Override
+    public Map getPriority() {
+        Map<Long, Integer> map = new HashMap<>();
+        LinkedList<RDD> linkedList = (LinkedList<RDD>) containRDDs;
+        for (int i = 0; i < linkedList.size(); i++) {
+            map.put(linkedList.get(i).rddId, i + 1); // 越小优先级越低
+        }
+        return map;
     }
 
 }

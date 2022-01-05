@@ -1,6 +1,7 @@
 package utils.ds;
 
 import entity.RDD;
+import entity.Stage;
 import simulator.ReferenceCountManager;
 
 import java.util.*;
@@ -25,8 +26,13 @@ public class LRCUtil extends ReplaceUtil {
         this.rddIdToActionNum = rddIdToActionNum;
     }
 
+    @Deprecated
     public void updateHotDataRefCountByRDD(RDD rdd) {
         ReferenceCountManager.updateHotDataRefCountByRDD(hotDataRC, rdd, rddIdToActionNum);
+    }
+
+    public void updateHotDataRefCountByStage(Stage stage) {
+        ReferenceCountManager.updateHotDataRefCountByStage(hotDataRC, stage, rddIdToActionNum);
     }
 
     // 每次新application，都要初始化hotDataRC和rddIdToActionNum
@@ -40,6 +46,9 @@ public class LRCUtil extends ReplaceUtil {
 
     @Override
     public long addRDD(RDD rdd) {
+        if (!hotDataRC.containsKey(rdd.rddId)) {
+            return 0;
+        }
         containsRDDs.add(rdd);
         cachedRDDIds.add(rdd.rddId);
         return rdd.partitionNum;
@@ -56,7 +65,8 @@ public class LRCUtil extends ReplaceUtil {
     }
 
     public void sortRDDByRC() {
-        containsRDDs.sort(Comparator.comparingInt(o -> hotDataRC.get(o.rddId)));
+//        containsRDDs.sort(Comparator.comparingInt(o -> hotDataRC.get(o.rddId)));
+        containsRDDs.sort((o1, o2) -> hotDataRC.get(o1.rddId) - hotDataRC.get(o2.rddId) != 0 ? hotDataRC.get(o1.rddId) - hotDataRC.get(o2.rddId) : (int) (o2.rddId - o1.rddId));
     }
 
     @Override
@@ -75,5 +85,10 @@ public class LRCUtil extends ReplaceUtil {
     @Override
     public RDD getRDD(long rddId) {
         return null; // LRC不必实现
+    }
+
+    @Override
+    public Map getPriority() {
+        return hotDataRC;
     }
 }

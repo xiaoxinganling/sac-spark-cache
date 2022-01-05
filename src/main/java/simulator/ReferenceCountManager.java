@@ -2,6 +2,7 @@ package simulator;
 
 import entity.Job;
 import entity.RDD;
+import entity.Stage;
 import entity.event.JobStartEvent;
 import utils.CacheSketcher;
 import utils.SimpleUtil;
@@ -38,6 +39,23 @@ public class ReferenceCountManager {
             if(hotDataRC.containsKey(parentId)) {
                 hotDataRC.put(parentId, hotDataRC.get(parentId) - 1);
             }
+        }
+    }
+
+    public static void updateHotDataRefCountByStage(Map<Long, Integer> hotDataRC, Stage currentRunStage, Map<Long, Integer> rddIdToActionNum) { // fix bug: RDD 27's rc != 0
+        // TODO: 已假设Stage中RDD不会重复出现，待验证
+        for (RDD rdd : currentRunStage.rdds) {
+            for(long parentId : rdd.rddParentIDs) {
+                if(hotDataRC.containsKey(parentId)) {
+                    hotDataRC.put(parentId, hotDataRC.get(parentId) - 1);
+                }
+            }
+        }
+        RDD lastRDD = SimpleUtil.lastRDDOfStage(currentRunStage);
+        Long rddId = lastRDD.rddId;
+        if(hotDataRC.containsKey(rddId) && rddIdToActionNum.containsKey(rddId)) { //  && rddIdToActionNum.get(rddId) > 0
+            hotDataRC.put(rddId, hotDataRC.get(rddId) - 1);
+            rddIdToActionNum.put(rddId, rddIdToActionNum.get(rddId) - 1);
         }
     }
 

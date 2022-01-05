@@ -16,6 +16,7 @@ public class LRUUtil extends ReplaceUtil{
     @Override
     public long addRDD(RDD rdd) {
         if(cachedRDDIds.contains(rdd.rddId)) {
+            getRDD(rdd.rddId); // 计算完毕还是需要更新一下的
             return 0;
         }
         memoryMap.put(rdd.rddId, rdd);
@@ -50,5 +51,15 @@ public class LRUUtil extends ReplaceUtil{
     @Override
     public RDD getRDD(long rddId) {
         return memoryMap.get(rddId);
+    }
+
+    @Override
+    public Map getPriority() {
+        Map<Long, Integer> map = new HashMap<>();
+        Iterator<Long> iterator = memoryMap.keySet().iterator();
+        for (int i = 0; i < memoryMap.size(); i++) {
+            map.put(iterator.next(), i + 1); // 越小优先级越低
+        }
+        return map;
     }
 }

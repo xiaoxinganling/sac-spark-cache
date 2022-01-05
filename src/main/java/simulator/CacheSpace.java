@@ -18,6 +18,10 @@ public class CacheSpace {
 
     private ReplacePolicy policy;
 
+    public ReplacePolicy getPolicy() {
+        return policy;
+    }
+
     private ReplaceUtil replaceUtil; //TODO: to combine all replace algorithms
 
     private Logger logger = Logger.getLogger(this.getClass());
@@ -99,9 +103,9 @@ public class CacheSpace {
             }
             case LRC:
             {
-                // 首先更新hotDataRC
+                // 首先更新hotDataRC，FIXME: 这里不更新了
                 LRCUtil lrcUtil = (LRCUtil) replaceUtil;
-                lrcUtil.updateHotDataRefCountByRDD(rdd);
+//                lrcUtil.updateHotDataRefCountByRDD(rdd);
                 // 1. 无需添加
                 // 2. 需添加，总大小不够
                 if (getCachedRDDIds().contains(rdd.rddId) || totalSize < rdd.partitionNum) {
@@ -158,7 +162,16 @@ public class CacheSpace {
             mrdUtil.updateRDDDistanceByStage(stage);
             logger.info(String.format("CacheSpace: update RDD Distance of policy [%s] after running Stage [%d].",
                     policy, stage.stageId));
+        } else if (policy == ReplacePolicy.LRC) {
+            LRCUtil lrcUtil = (LRCUtil) replaceUtil;
+            lrcUtil.updateHotDataRefCountByStage(stage);
+            logger.info(String.format("CacheSpace: update RDD Reference Count of policy [%s] after running Stage [%d].",
+                    policy, stage.stageId));
         }
+    }
+
+    public Map getPriority() {
+        return replaceUtil.getPriority();
     }
 
 }

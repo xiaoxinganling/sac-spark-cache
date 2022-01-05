@@ -73,4 +73,29 @@ class TestReferenceCountManager {
             }
         }
     }
+
+    @Test
+    void updateHotDataRefCountByStage() throws IOException { // 吐槽一下，我这把别人的工作也实现得也太好了= =
+        {
+            // 测试最终hotDataRC所有value为0
+            for (int i = 0; i < fileNames.length; i++) {
+                List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + fileNames[i]);
+                List<RDD> hotData = HotDataGenerator.hotRDD(applicationNames[i], jobList);
+                Map<Long, Integer> rddIdToActionNum = ReferenceCountManager.generateRDDIdToActionNum(jobList);
+                Map<Long, Integer> hotDataRC = ReferenceCountManager.generateRefCountForHotData(jobList, hotData);
+                System.out.println(hotDataRC);
+                for (Job job : jobList) {
+                    System.out.println("job " + job.jobId +  " before: " + hotDataRC);
+                    for (Stage stage : job.stages) {
+                        ReferenceCountManager.updateHotDataRefCountByStage(hotDataRC, stage, rddIdToActionNum);
+                    }
+                    System.out.println("job " + job.jobId +  " after:  " + hotDataRC);
+                }
+                for (int value : hotDataRC.values()) {
+                    assertEquals(0, value);
+                }
+            }
+        }
+    }
+
 }

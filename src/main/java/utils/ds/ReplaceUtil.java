@@ -3,6 +3,7 @@ package utils.ds;
 
 import entity.RDD;
 
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -27,5 +28,7 @@ public abstract class ReplaceUtil {
     public abstract Set<Long> getCachedRDDIds();
 
     public abstract RDD getRDD(long rddId);
+
+    public abstract Map getPriority();
 
 }
