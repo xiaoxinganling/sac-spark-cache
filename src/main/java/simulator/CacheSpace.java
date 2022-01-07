@@ -4,6 +4,8 @@ import entity.Job;
 import entity.RDD;
 import entity.Stage;
 import org.apache.log4j.Logger;
+import simulator.dp.KeyPathManager;
+import simulator.dp.RDDTimeManager;
 import utils.ds.*;
 
 import java.util.*;
@@ -51,6 +53,7 @@ public class CacheSpace {
                 replaceUtil = new MRDUtil();
                 break;
             case DP:
+                replaceUtil = new DPUtil();
                 break;
             default:
         }
@@ -136,7 +139,34 @@ public class CacheSpace {
                 return true;
             }
             case DP:
-                break;
+            {
+                DPUtil dpUtil = (DPUtil) replaceUtil;
+                // 1. 无需添加
+                // 2. 需添加，总大小不够
+                if (getCachedRDDIds().contains(rdd.rddId) || totalSize < rdd.partitionNum) {
+                    return false;
+                }
+                // 3. 可直接添加
+                if (totalSize - curSize >= rdd.partitionNum) {
+                    dpUtil.addRDD(rdd);
+                    curSize += rdd.partitionNum; // fix: 忘记更新curSize了, 写成了curSize+=totalSize
+                    return true;
+                }
+                // 4. 需添加，需决策
+                Set<Long> rddToAdd = dpUtil.doDp(rdd, totalSize);
+                Set<Long> cachedRDDIds = new HashSet<>(getCachedRDDIds());
+                for (long curCachedRDDId : cachedRDDIds) {
+                    if (!rddToAdd.contains(curCachedRDDId)) {
+                        RDD toDelete = dpUtil.deleteRDD(curCachedRDDId);
+                        curSize -= toDelete.partitionNum; // fix：更新curSize -> 不需要curSize
+                    }
+                }
+                if (rddToAdd.contains(rdd.rddId)) {
+                    dpUtil.addRDD(rdd);
+                    curSize += rdd.partitionNum; // fix: 更新curSize
+                }
+                return true;
+            }
             default:
         }
         return true; // just for return
@@ -152,6 +182,10 @@ public class CacheSpace {
         } else if (policy == ReplacePolicy.MRD) {
             MRDUtil mrdUtil = (MRDUtil) replaceUtil;
             mrdUtil.setRddToStageIds(RDDStageInfoManager.generateDistanceForHotData(jobList, hotData));
+        } else if (policy == ReplacePolicy.DP) {
+            RDDTimeManager.timeMemMap = new HashMap<>();
+            DPUtil dpUtil = (DPUtil) replaceUtil;
+            dpUtil.setKeyStages(KeyPathManager.generateKeyStages(jobList));
         }
         logger.info(String.format("CacheSpace: prepare for new application [%s].", newApplication));
     }
@@ -166,6 +200,11 @@ public class CacheSpace {
             LRCUtil lrcUtil = (LRCUtil) replaceUtil;
             lrcUtil.updateHotDataRefCountByStage(stage);
             logger.info(String.format("CacheSpace: update RDD Reference Count of policy [%s] after running Stage [%d].",
+                    policy, stage.stageId));
+        } else if (policy == ReplacePolicy.DP) {
+            DPUtil dpUtil = (DPUtil) replaceUtil;
+            dpUtil.updateKeyStagesByStage(stage);
+            logger.info(String.format("CacheSpace: update key stages of policy [%s] after running Stage [%d].",
                     policy, stage.stageId));
         }
     }

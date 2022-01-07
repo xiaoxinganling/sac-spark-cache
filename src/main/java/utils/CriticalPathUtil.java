@@ -3,7 +3,6 @@ package utils;
 import entity.Job;
 import entity.RDD;
 import entity.Stage;
-import org.omg.CORBA.INTERNAL;
 import simulator.CacheSpace;
 import java.util.*;
 
@@ -43,6 +42,10 @@ class Graph
 }
 
 public class CriticalPathUtil {
+
+    public static final long STAGE_LAST_NODE = Long.MAX_VALUE;
+
+    public static final List<Long> NO_NEED_FOR_PATH = null;
 
     // Perform DFS on graph and set departure time of all
     // vertices of the graph
@@ -198,7 +201,8 @@ public class CriticalPathUtil {
     }
 
     // TODO: 这里是否要改呢？
-    public static double getLongestTimeOfStage(Stage stage, CacheSpace cacheSpace) {
+    public static double getLongestTimeOfStageWithSource(Stage stage, CacheSpace cacheSpace,
+                                                         long source, List<Long> computePath) {
         // List of graph edges as per above diagram
         Set<Long> rddIdSet = new HashSet<>();
         long maxId = 0;
@@ -229,10 +233,26 @@ public class CriticalPathUtil {
         // create a graph from given edges
         Graph graph = new Graph(edges, N);
 
-        int source = SimpleUtil.lastRDDOfStage(stage).rddId.intValue();
-
         // find longest distance of all vertices from given source
-        return findLongestDistance(graph, source, N); // add initial compute time
+        if (source == STAGE_LAST_NODE) {
+            source = SimpleUtil.lastRDDOfStage(stage).rddId;
+        }
+        if (computePath != null) {
+            Map<Long, Long> parentMap = new HashMap<>();
+            double computeTime = getLongestTimeOfStageWithPath(stage, cacheSpace, parentMap);
+            UnionFindUtil ufu = new UnionFindUtil(N);
+            for (Map.Entry<Long, Long> entry : parentMap.entrySet()) {
+                ufu.union(entry.getKey().intValue(), entry.getValue().intValue()); //直接union
+            }
+            for (int i = stage.rdds.size() - 1; i >= 0; i--) {
+                RDD rdd = stage.rdds.get(i);
+                if (ufu.connected(rdd.rddId.intValue(), (int) source) && rdd.rddId != maxId + 1) {
+                    computePath.add(rdd.rddId);
+                }
+            }
+            return computeTime; // fix: add for longest path
+        }
+        return findLongestDistance(graph, (int) source, N); // add initial compute time
     }
 
     /**
@@ -241,7 +261,7 @@ public class CriticalPathUtil {
      * @param cacheSpace
      * @return
      */
-    public static Map<Long, Long> getLongestTimeOfStageWithPath(Stage stage, CacheSpace cacheSpace) {
+    public static double getLongestTimeOfStageWithPath(Stage stage, CacheSpace cacheSpace, Map<Long, Long> parentMap) {
         // List of graph edges as per above diagram
         Set<Long> rddIdSet = new HashSet<>();
         long maxId = 0;
@@ -275,13 +295,67 @@ public class CriticalPathUtil {
         int source = SimpleUtil.lastRDDOfStage(stage).rddId.intValue();
 
         // find longest distance of all vertices from given source
-        Map<Long, Long> parentMap = new HashMap<>();
-        findLongestDistanceWithPath(graph, source, N, parentMap); // add initial compute time
-        return parentMap;
+        return findLongestDistanceWithPath(graph, source, N, parentMap); // add initial compute time
     }
 
-    public static List<Stage> getKeyStagesOfJobListWithVisitedInfo(List<Job> jobList, Set<Long> visitedStages) {
-        return null;
+    /**
+     * 返回一个job的key stages——打算用增量而不是全量的方式实现
+     * @param job
+     * @return
+     */
+    public static Map<Long, Stage> getKeyStagesOfJob(Job job) {
+        Map<Long, Stage> stageMap = new HashMap<>();
+        long maxId = 0;
+        for (Stage stage : job.stages) {
+            stageMap.put(stage.stageId, stage);
+            maxId = Math.max(maxId, stage.stageId);
+        }
+        List<Edge> edges = new ArrayList<>();
+        for (Stage stage : job.stages) {
+            int stageParentSize = 0;
+            for (long parentId : stage.parentIDs) {
+                if (stageMap.containsKey(parentId)) {
+                    edges.add(new Edge(stage.stageId.intValue(), (int) parentId,
+                            getLongestTimeOfStageWithSource(stageMap.get(parentId), null, CriticalPathUtil.STAGE_LAST_NODE, CriticalPathUtil.NO_NEED_FOR_PATH))); // fix: 权重不能是1，应当是parent的最大路径
+                    stageParentSize++;
+                }
+            }
+            if (stageParentSize == 0) {
+                edges.add(new Edge(stage.stageId.intValue(), (int) maxId + 1, 1));
+            }
+        }
+        int N = (int) maxId + 2;
+        Graph graph = new Graph(edges, N);
+        int source = SimpleUtil.lastStageOfJob(job).stageId.intValue();
+        Map<Long, Long> parentMap = new HashMap<>();
+        findLongestDistanceWithPath(graph, source, N, parentMap);
+        Map<Long, Stage> keyStageOfJob = new HashMap<>();
+        long start = maxId + 1;
+        while (parentMap.containsKey(start)) {
+            long stageToAddId = parentMap.get(start);
+            keyStageOfJob.put(stageToAddId, stageMap.get(stageToAddId)); // fix: 直接死循环
+//            System.out.println("add: " + stageToAddId);
+            start = stageToAddId;
+        }
+        return keyStageOfJob;
+    }
+
+    /**
+     * 返回job list的所有key stages
+     * @param jobList
+     * @return
+     */
+    public static Map<Long, Stage> getKeyStagesOfJobList(List<Job> jobList) {
+        Map<Long, Stage> keyStageMap = new HashMap<>(); // TODO: judge
+        for (Job job : jobList) {
+            Map<Long, Stage> keyStageForOneJob = getKeyStagesOfJob(job);
+//            keyStageMap.putAll(keyStageForOneJob); // 不同job的stage不可能重复
+            for (Map.Entry<Long, Stage> entry : keyStageForOneJob.entrySet()) {
+                assert !keyStageMap.containsKey(entry.getKey());
+                keyStageMap.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return keyStageMap;
     }
 
     public static void main(String[] args) {

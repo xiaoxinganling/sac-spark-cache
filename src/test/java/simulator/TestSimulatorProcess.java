@@ -8,13 +8,13 @@ import sketch.StaticSketch;
 class TestSimulatorProcess {
 
     String fileName = "E:\\Google Chrome Download\\";
-//    String[] applicationName = StaticSketch.applicationName;
-//    String[] applicationPath = StaticSketch.applicationPath;
+    String[] applicationName = StaticSketch.applicationName;
+    String[] applicationPath = StaticSketch.applicationPath;
 
     // 使用工具人svm进行测试——思考如何高效测试
     // job_id, stage_id, hot_rdd_id, before_cache_space, after_cache_space, values(如果有的话,如lrc和mrd)
-    String[] applicationPath = {StaticSketch.applicationPath[5]};
-    String[] applicationName = {StaticSketch.applicationName[5]}; // svm 5, triangle count 10, kmeans 12, decision_tree 14, pca 15
+//    String[] applicationPath = {StaticSketch.applicationPath[5]};
+//    String[] applicationName = {StaticSketch.applicationName[5]}; // svm 5, triangle count 10, kmeans 12, decision_tree 14, pca 15
     Logger logger = Logger.getLogger(TestSimulatorProcess.class);
 
     @BeforeEach
@@ -79,6 +79,12 @@ class TestSimulatorProcess {
     @Test
     void testProcessWithRuntimeMRD() {
         SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.MRD, 20);
+    }
+
+    // DP
+    @Test
+    void testProcessWithRuntimeDP() {
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.DP, 20);
     }
 
 }

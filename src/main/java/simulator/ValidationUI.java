@@ -13,7 +13,7 @@ import java.util.Set;
  */
 public class ValidationUI {
 
-    private static final String SVM_VALID = "a_spark_svm_validation.tsv";
+    private static final String SVM_VALID = "a_spark_svm_validation_N.tsv";
 
     private static boolean isInitial = true;
 

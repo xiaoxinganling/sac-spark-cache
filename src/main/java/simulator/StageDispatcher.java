@@ -110,6 +110,7 @@ public class StageDispatcher {
         }
         for (StageRunner sr : stageRunners) {
             sr.setHotRDD(curHotData);
+            sr.setHotRDDMap(curHotData);
             sr.setHotRDDIdSet(hotRDDIdSet);
             logger.info(String.format("StageDispatcher has updated hot RDD of StageRunner [%s] with %s.",
                     sr.stageRunnerId, hotRDDIdSet));

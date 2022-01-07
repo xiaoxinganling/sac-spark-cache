@@ -6,7 +6,6 @@ import lombok.Data;
 import org.apache.log4j.Logger;
 import utils.CriticalPathUtil;
 
-import java.io.IOException;
 import java.util.*;
 
 @Data
@@ -19,6 +18,15 @@ public class StageRunner {
     private CacheSpace cacheSpace;
 
     private List<RDD> hotRDD;
+
+    private Map<Long, RDD> hotRDDMap;
+
+    public void setHotRDDMap(List<RDD> hotRDD) {
+        hotRDDMap = new HashMap<>();
+        for (RDD rdd : hotRDD) {
+            hotRDDMap.put(rdd.rddId, rdd);
+        }
+    }
 
     private Set<Long> hotRDDIdSet;
 
@@ -70,7 +78,7 @@ public class StageRunner {
     }
 
     private double runTimeOfStage(Stage stage) {
-        return CriticalPathUtil.getLongestTimeOfStage(stage, null);
+        return CriticalPathUtil.getLongestTimeOfStageWithSource(stage, null, CriticalPathUtil.STAGE_LAST_NODE, CriticalPathUtil.NO_NEED_FOR_PATH);
 //        RDD lastRDD = SimpleUtil.lastRDDOfStage(stage);
 //        Map<Long, RDD> rddMap = new HashMap<>();
 //        for(RDD rdd : stage.rdds) {
@@ -85,11 +93,25 @@ public class StageRunner {
             // run every stage of StageRunner
             Stage curStage = stageQueue.poll();
             Set<Long> beforeSet = new HashSet<>(cacheSpace.getCachedRDDIds());
-            Map beforePriority = new HashMap(cacheSpace.getPriority());
+//            Map beforePriority = new HashMap(cacheSpace.getPriority());
             logger.info(String.format("StageRunner [%s] is running Stage [%d] with CacheSpace %s.",
                     stageRunnerId, curStage.stageId, beforeSet));
-            double runTime = CriticalPathUtil.getLongestTimeOfStage(curStage, cacheSpace); //run之前更新
-            double contrastRunTime = CriticalPathUtil.getLongestTimeOfStage(curStage, null);// TODO: to delete for performance
+            if (cacheSpace.getPolicy() == ReplacePolicy.DP) {
+                List<Long> computePath = new ArrayList<>();
+                double runTime = CriticalPathUtil.getLongestTimeOfStageWithSource(curStage, cacheSpace, CriticalPathUtil.STAGE_LAST_NODE, computePath);
+                cacheSpace.changeAfterStageRun(curStage);
+                for (long rddId : computePath) {
+                    if (hotRDDIdSet.contains(rddId)) {
+                        cacheSpace.addRDD(hotRDDMap.get(rddId));
+                    }
+                }
+                res += runTime;
+                logger.info(String.format("StageRunner [%s] has run Stage [%d] for [%f]s, CacheSpace %s -> %s.",
+                        stageRunnerId, curStage.stageId, runTime, beforeSet, cacheSpace.getCachedRDDIds()));
+                continue;
+            }
+            double runTime = CriticalPathUtil.getLongestTimeOfStageWithSource(curStage, cacheSpace, CriticalPathUtil.STAGE_LAST_NODE, CriticalPathUtil.NO_NEED_FOR_PATH); //run之前更新
+            double contrastRunTime = CriticalPathUtil.getLongestTimeOfStageWithSource(curStage, null, CriticalPathUtil.STAGE_LAST_NODE, CriticalPathUtil.NO_NEED_FOR_PATH);// TODO: to delete for performance
             // after running stage, update MRDUtil's distance and LRCUtil's reference count
             cacheSpace.changeAfterStageRun(curStage);
             // end update
@@ -99,18 +121,18 @@ public class StageRunner {
                 // LRC是将所有的rdd都执行add操作
                 if (hotRDDIdSet.contains(rdd.rddId) || cacheSpace.getPolicy() == ReplacePolicy.LRC) { // 不要重复添加 fix bug of repeatedly adding ` && !cacheSpace.getCachedRDDIds().contains(rdd.rddId)`
                     // for check
-                    beforeSet = new HashSet<>(cacheSpace.getCachedRDDIds());
-                    cacheSpace.addRDD(rdd); // 原本的代码
-                    try {
-                        if (hotRDDIdSet.contains(rdd.rddId)) {
-                            ValidationUI.writeLine(SimulatorProcess.curJobId, curStage.stageId, rdd,
-                                    beforeSet, cacheSpace.getCachedRDDIds(), beforePriority, cacheSpace.getPolicy(), cacheSpace.getPriority());
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+//                    beforeSet = new HashSet<>(cacheSpace.getCachedRDDIds());
+//                    cacheSpace.addRDD(rdd); // 原本的代码
+//                    try {
+//                        if (hotRDDIdSet.contains(rdd.rddId)) {
+//                            ValidationUI.writeLine(SimulatorProcess.curJobId, curStage.stageId, rdd,
+//                                    beforeSet, cacheSpace.getCachedRDDIds(), beforePriority, cacheSpace.getPolicy(), cacheSpace.getPriority());
+//                        }
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
                     // end check
-//                    cacheSpace.addRDD(rdd);
+                    cacheSpace.addRDD(rdd);
                 }
             }
             // end add

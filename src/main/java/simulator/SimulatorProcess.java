@@ -82,6 +82,9 @@ public class SimulatorProcess {
         for(int i = 0; i < applicationNames.length; i++) {
             String application = applicationNames[i];
             String applicationFileName = fileNames[i];
+//            if (!application.contains("spark_strongly")) {
+//                continue;
+//            }
             // get job list and hot data
             JobStageSubmitter jss = new JobStageSubmitter(application, applicationFileName);
             List<RDD> hotData = HotDataGenerator.hotRDD(application, jss.jobList);
