@@ -5,6 +5,9 @@ import entity.RDD;
 import entity.Stage;
 import org.apache.log4j.Logger;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -75,11 +78,12 @@ public class SimulatorProcess {
         System.out.println(applicationTimeToPrint);
     }
 
-    public static void processWithRuntimeCache(String[] applicationNames, String[] fileNames, ReplacePolicy policy, int cacheSpaceSize) {
+    public static List<List<Double>> processWithRuntimeCache(String[] applicationNames, String[] fileNames, ReplacePolicy policy, int cacheSpaceSize) {
         CacheSpace cacheSpace = new CacheSpace(cacheSpaceSize, policy);
         StageDispatcher sd = new StageDispatcher("RUNTIME_CACHE", 4, cacheSpace);
         List<Double> applicationTimeToPrint = new ArrayList<>();
-        for(int i = 0; i < applicationNames.length; i++) {
+        List<Double> hitRatio = new ArrayList<>();
+        for (int i = 0; i < applicationNames.length; i++) {
             String application = applicationNames[i];
             String applicationFileName = fileNames[i];
 //            if (!application.contains("spark_strongly")) {
@@ -88,19 +92,19 @@ public class SimulatorProcess {
             // get job list and hot data
             JobStageSubmitter jss = new JobStageSubmitter(application, applicationFileName);
             List<RDD> hotData = HotDataGenerator.hotRDD(application, jss.jobList);
-            long proposedSize =  HotDataGenerator.proposeCacheSpaceSize(application, hotData); // TODO: do something for the size
+            long proposedSize = HotDataGenerator.proposeCacheSpaceSize(application, hotData); // TODO: do something for the size
             // prepare for running application, StageDispatcher -> (StageRunner | CacheSpace)
             sd.prepareForNewApplication(application, jss.jobList, hotData);
             sd.initializeHotRDDOfStageRunners();
             sd.initializeCacheSpace();
             double applicationTotalTime = 0;
-            for(Job job : jss.jobList) {
+            for (Job job : jss.jobList) {
                 curJobId = job.jobId; // for check
                 double jobTotalTime = 0;
                 sd.dispatchStage(jss.submitAvailableJob());
                 jobTotalTime += sd.runStagesWithCacheSpace();
                 List<Stage> toSubmit;
-                while((toSubmit = jss.submitAvailableStages()) != null) {
+                while ((toSubmit = jss.submitAvailableStages()) != null) {
                     sd.dispatchStage(toSubmit);
                     jobTotalTime += sd.runStagesWithCacheSpace();
                 }
@@ -111,8 +115,15 @@ public class SimulatorProcess {
             logger.debug(String.format("SimulatorProcess: application [%s] has run for [%f]s.)",
                     application, applicationTotalTime));
             applicationTimeToPrint.add(applicationTotalTime);
+            hitRatio.add(StageDispatcher.hitRatio());
         }
-        System.out.println(applicationTimeToPrint);
+        for (int i = 0; i < applicationTimeToPrint.size(); i++) {
+//            System.out.println(applicationTimeToPrint.get(i));
+            System.out.println(hitRatio.get(i)); //%是转义符
+        }
+        List<List<Double>> res = new ArrayList<>();
+        res.add(applicationTimeToPrint);
+        res.add(hitRatio);
+        return res;
     }
-
 }

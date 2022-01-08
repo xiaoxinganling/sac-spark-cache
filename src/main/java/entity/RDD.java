@@ -36,4 +36,9 @@ public class RDD {
 
     @JSONField(name = "Disk Size")
     public Long diskSize;
+
+    // add compute time
+    @JSONField(name = "Compute Time")
+    public Double computeTime;
+
 }

@@ -1,6 +1,7 @@
 package simulator;
 
 import entity.Job;
+import entity.RDD;
 import entity.Stage;
 import org.junit.jupiter.api.Test;
 import sketch.StaticSketch;
@@ -38,17 +39,24 @@ class TestJobGenerator {
     @Test
     void generateJobsWithFilteredStagesOfApplication() throws IOException {
         for(int i = 0; i < applicationName.length; i++) {
-            if(!applicationName[i].contains("spark_svm")) {
-                continue;
-            }
+//            if(!applicationName[i].contains("spark_svm")) {
+//                continue;
+//            }
             List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + applicationPath[i]);
             System.out.println(applicationName[i] + " " + jobList.size());
             for(Job job : jobList) {
                 Set<Long> stageIdSet = new HashSet<>();
                 for(Stage stage : job.stages) {
+                    long completeTime = stage.completeTime - stage.submitTime;
+                    double avgTime = completeTime / (double) stage.rdds.size();
+                    System.out.println(String.format("stage_%d, computeTime: %d, rdd_size %d, avg time: %f",
+                            stage.stageId, completeTime, stage.rdds.size(), avgTime));
+                    for (RDD rdd : stage.rdds) {
+                        assertEquals(avgTime, rdd.computeTime);
+                    }
                     stageIdSet.add(stage.stageId);
                 }
-                System.out.println("job_" + job.jobId + "_stage_num: " + job.stages.size() + " " + stageIdSet);
+                //System.out.println("job_" + job.jobId + "_stage_num: " + job.stages.size() + " " + stageIdSet);
             }
         }
     }

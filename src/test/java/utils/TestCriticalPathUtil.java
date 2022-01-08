@@ -77,9 +77,9 @@ class TestCriticalPathUtil {
     @Test
     void testGetKeyStagesOfJob() throws IOException {
         for (int i = 0; i < applicationName.length; i++) {
-//            if (!applicationName[i].contains("spark_svm")) {
-//                continue;
-//            }
+            if (!applicationName[i].contains("spark_svm")) {
+                continue;
+            }
             // 往后所有只需要job List的地方都用这个函数
             List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + applicationPath[i]);
             for (Job job : jobList) {

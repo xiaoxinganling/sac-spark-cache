@@ -3,6 +3,7 @@ package simulator;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import entity.Job;
+import entity.RDD;
 import entity.Stage;
 import entity.event.StageCompletedEvent;
 import sketch.StaticSketch;
@@ -53,26 +54,34 @@ public class JobGenerator {
             return resList;
         }
         List<Job> jobList = new ArrayList<>();
-        Set<Long> actualStageIds = new HashSet<>();
+        Map<Long, Stage> actualStages = new HashMap<>();
         BufferedReader br = new BufferedReader(new FileReader(fileName));
         String line;
         while((line = br.readLine()) != null) {
             JSONObject jsonObject = JSONObject.parseObject(line);
             if(jsonObject.get("Event").equals(StaticSketch.stageCompletedEventFlag)) {
                 StageCompletedEvent sce = JSON.toJavaObject(jsonObject, StageCompletedEvent.class);
-                actualStageIds.add(sce.stage.stageId);
+                actualStages.put(sce.stage.stageId, sce.stage);
             }else if(jsonObject.get("Event").equals(StaticSketch.jobStartEventFlag)) {
                 jobList.add(JSON.toJavaObject(jsonObject, Job.class));
             }
         }
         br.close();
-        for(Job job : jobList) {
+        for (Job job : jobList) {
              List<Stage> filteredStageList = new ArrayList<>();
              List<Long> stageIds = new ArrayList<>();
-             for(Stage stage : job.stages) {
-                 if(actualStageIds.contains(stage.stageId)) {
+             for (Stage stage : job.stages) {
+                 if (actualStages.containsKey(stage.stageId)) {
                      // KEYPOINT: Stage 无重复
-                     filteredStageList.add(stage);
+                     // init compute time for RDD
+                     Stage fullStage = actualStages.get(stage.stageId);
+                     long stageComputeTime = fullStage.completeTime - fullStage.submitTime;
+                     double avgTime = stageComputeTime / (double) fullStage.rdds.size();
+                     for (RDD rdd : fullStage.rdds) {
+                         rdd.computeTime = avgTime;
+                     }
+                     // end init
+                     filteredStageList.add(fullStage);
                      stageIds.add(stage.stageId);
                  }
              }
@@ -80,7 +89,7 @@ public class JobGenerator {
              job.stageIds = stageIds;
         }
         BufferedWriter bw = new BufferedWriter(new FileWriter(newFileName));
-        for(Job job : jobList) {
+        for (Job job : jobList) {
             bw.write(JSON.toJSON(job).toString() + "\n");
         }
         bw.close();

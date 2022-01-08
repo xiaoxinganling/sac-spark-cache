@@ -210,33 +210,13 @@ public class CriticalPathUtil {
             rddIdSet.add(rdd.rddId);
             maxId = Math.max(maxId, rdd.rddId);
         }
-        List<Edge> edges = new ArrayList<>();
-        stage.rdds.sort((o1, o2) -> (int) (o2.rddId - o1.rddId)); // TODO: 这里存在降序排序
-        for(RDD rdd : stage.rdds) {
-            if(cacheSpace != null && cacheSpace.rddInCacheSpace(rdd.rddId)) {
-                continue;
-            }
-            int rddParentSize = 0;
-            for(long parentId : rdd.rddParentIDs) {
-                if(rddIdSet.contains(parentId)) {
-                    edges.add(new Edge(rdd.rddId.intValue(), (int) parentId, 1));
-                    rddParentSize++;
-                }
-            }
-            if(rddParentSize == 0) {
-                edges.add(new Edge(rdd.rddId.intValue(), (int) maxId + 1, 1));
-            }
-        }
-
         int N = (int) maxId + 2;
-
-        // create a graph from given edges
-        Graph graph = new Graph(edges, N);
-
         // find longest distance of all vertices from given source
         if (source == STAGE_LAST_NODE) {
             source = SimpleUtil.lastRDDOfStage(stage).rddId;
         }
+
+        // record path
         if (computePath != null) {
             Map<Long, Long> parentMap = new HashMap<>();
             double computeTime = getLongestTimeOfStageWithPath(stage, cacheSpace, parentMap);
@@ -252,6 +232,29 @@ public class CriticalPathUtil {
             }
             return computeTime; // fix: add for longest path
         }
+        // end record path
+
+        List<Edge> edges = new ArrayList<>();
+        stage.rdds.sort((o1, o2) -> (int) (o2.rddId - o1.rddId)); // TODO: 这里存在降序排序
+        for(RDD rdd : stage.rdds) {
+            if(cacheSpace != null && cacheSpace.rddInCacheSpace(rdd.rddId)) {
+                continue;
+            }
+            int rddParentSize = 0;
+            for(long parentId : rdd.rddParentIDs) {
+                if(rddIdSet.contains(parentId)) {
+                    edges.add(new Edge(rdd.rddId.intValue(), (int) parentId, rdd.computeTime)); // TODO: before 1
+                    rddParentSize++;
+                }
+            }
+            if(rddParentSize == 0) {
+                edges.add(new Edge(rdd.rddId.intValue(), (int) maxId + 1, rdd.computeTime));
+            }
+        }
+
+        // create a graph from given edges
+        Graph graph = new Graph(edges, N);
+
         return findLongestDistance(graph, (int) source, N); // add initial compute time
     }
 
@@ -278,12 +281,12 @@ public class CriticalPathUtil {
             int rddParentSize = 0;
             for(long parentId : rdd.rddParentIDs) {
                 if(rddIdSet.contains(parentId)) {
-                    edges.add(new Edge(rdd.rddId.intValue(), (int) parentId, 1));
+                    edges.add(new Edge(rdd.rddId.intValue(), (int) parentId, rdd.computeTime));
                     rddParentSize++;
                 }
             }
             if(rddParentSize == 0) {
-                edges.add(new Edge(rdd.rddId.intValue(), (int) maxId + 1, 1));
+                edges.add(new Edge(rdd.rddId.intValue(), (int) maxId + 1, rdd.computeTime));
             }
         }
 
@@ -321,7 +324,7 @@ public class CriticalPathUtil {
                 }
             }
             if (stageParentSize == 0) {
-                edges.add(new Edge(stage.stageId.intValue(), (int) maxId + 1, 1));
+                edges.add(new Edge(stage.stageId.intValue(), (int) maxId + 1, 1)); // fix: 这里1倒是无所谓
             }
         }
         int N = (int) maxId + 2;

@@ -25,12 +25,34 @@ public class StageDispatcher {
 
     private List<RDD> curHotData;
 
+    private static int visitNum;
+
+    private static int hitNum;
+
+    public static double hitRatio() {
+        return visitNum == 0 ? Integer.MAX_VALUE : hitNum / (double) visitNum;
+    }
+
+    public static void updateCacheHitRatio(List<Long> computePath, Set<Long> hotDataIdSet, Set<Long> cachedRDDIdSet) {
+        // 因为第一次访问的时候不在，所以算非命中
+        for (long rddId : computePath) {
+            if (hotDataIdSet.contains(rddId)) {
+                visitNum++;
+            }
+            if (cachedRDDIdSet.contains(rddId)) {
+                hitNum++;
+            }
+        }
+    }
+
     private Logger logger = Logger.getLogger(this.getClass());
 
     public void prepareForNewApplication(String curApplication, List<Job> curJobList, List<RDD> curHotData) {
         this.curApplication = curApplication;
         this.curJobList = curJobList;
         this.curHotData = curHotData;
+        visitNum = 0;
+        hitNum = 0;
     }
 
     public StageDispatcher(String stageDispatcherId, int runnerSize) {
