@@ -97,32 +97,9 @@ class TestSimulatorProcess {
     void writeExpMetrics() throws IOException {
         ReplacePolicy[] replacePolicies = {ReplacePolicy.FIFO, ReplacePolicy.FIFO, ReplacePolicy.LRU, ReplacePolicy.LFU, ReplacePolicy.LRC, ReplacePolicy.MRD, ReplacePolicy.DP};
         int[] cacheSpaceSize = {1000000, 20, 20, 20, 20, 20, 20};
-        List<List<Double>> runTimes = new ArrayList<>();
-        List<List<Double>> hitRatios = new ArrayList<>();
-        for (int i = 0; i < applicationName.length; i++) {
-            runTimes.add(new ArrayList<>());
-            hitRatios.add(new ArrayList<>());
-        }
-        for (int i = 0; i < replacePolicies.length; i++) {
-            List<List<Double>> expMetrics = SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath,
-                    replacePolicies[i], cacheSpaceSize[i]);
-            List<Double> curRuntime = expMetrics.get(0);
-            List<Double> curHitRatio = expMetrics.get(1);
-            for (int j = 0; j < curRuntime.size(); j++) {
-                runTimes.get(j).add(curRuntime.get(j));
-                hitRatios.get(j).add(curHitRatio.get(j));
-            }
-        }
-        BufferedWriter bw = new BufferedWriter(new FileWriter("a_exp_run_time.csv"));
-        BufferedWriter bw2 = new BufferedWriter(new FileWriter("a_exp_hit_ratio.csv"));
-        for (int i = 0; i < runTimes.size(); i++) {
-            String toPrintRunTime = runTimes.get(i).toString();
-            bw.write(toPrintRunTime.substring(1, toPrintRunTime.length() - 1) + "\n");
-            String toPrintHitRatio = hitRatios.get(i).toString();
-            bw2.write(toPrintHitRatio.substring(1, toPrintHitRatio.length() - 1) + "\n");
-        }
-        bw.close();
-        bw2.close();
+        String runTimePath = "a_exp_run_time.csv";
+        String hitRatioPath = "a_exp_hit_ratio.csv";
+        SimulatorProcess.writeExpStatistics(applicationName, applicationPath, replacePolicies, cacheSpaceSize, runTimePath, hitRatioPath);
     }
 
 }

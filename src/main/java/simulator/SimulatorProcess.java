@@ -78,6 +78,36 @@ public class SimulatorProcess {
         System.out.println(applicationTimeToPrint);
     }
 
+    public static void writeExpStatistics(String[] applicationName, String[] applicationPath, ReplacePolicy[] replacePolicies,
+                                          int[] cacheSpaceSize, String runTimePath, String hitRatioPath) throws IOException {
+        List<List<Double>> runTimes = new ArrayList<>();
+        List<List<Double>> hitRatios = new ArrayList<>();
+        for (int i = 0; i < applicationName.length; i++) {
+            runTimes.add(new ArrayList<>());
+            hitRatios.add(new ArrayList<>());
+        }
+        for (int i = 0; i < replacePolicies.length; i++) {
+            List<List<Double>> expMetrics = SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath,
+                    replacePolicies[i], cacheSpaceSize[i]);
+            List<Double> curRuntime = expMetrics.get(0);
+            List<Double> curHitRatio = expMetrics.get(1);
+            for (int j = 0; j < curRuntime.size(); j++) {
+                runTimes.get(j).add(curRuntime.get(j));
+                hitRatios.get(j).add(curHitRatio.get(j));
+            }
+        }
+        BufferedWriter bw = new BufferedWriter(new FileWriter(runTimePath));
+        BufferedWriter bw2 = new BufferedWriter(new FileWriter(hitRatioPath));
+        for (int i = 0; i < runTimes.size(); i++) {
+            String toPrintRunTime = runTimes.get(i).toString();
+            bw.write(toPrintRunTime.substring(1, toPrintRunTime.length() - 1) + "\n");
+            String toPrintHitRatio = hitRatios.get(i).toString();
+            bw2.write(toPrintHitRatio.substring(1, toPrintHitRatio.length() - 1) + "\n");
+        }
+        bw.close();
+        bw2.close();
+    }
+
     public static List<List<Double>> processWithRuntimeCache(String[] applicationNames, String[] fileNames, ReplacePolicy policy, int cacheSpaceSize) {
         CacheSpace cacheSpace = new CacheSpace(cacheSpaceSize, policy);
         StageDispatcher sd = new StageDispatcher("RUNTIME_CACHE", 4, cacheSpace);
