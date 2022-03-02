@@ -1,5 +1,6 @@
 package task;
 
+import entity.TSDecision;
 import entity.Task;
 import org.junit.jupiter.api.Test;
 import simulator.TaskGenerator;
@@ -44,8 +45,8 @@ class TestTaskDispatcher {
 //                    System.out.println(d);
 //                }
                 TaskDispatcher taskDispatcher = new TaskDispatcher(String.format("TD-%s", applicationName[i]), 40);
-                taskDispatcher.dispatchTask(stageIdToTaskList, null);
-                double curTime = taskDispatcher.runTasks() / 1000.0;
+                List<TSDecision> tsDecisions = taskDispatcher.dispatchTask(stageIdToTaskList, null);
+                double curTime = taskDispatcher.runTasks(tsDecisions, null) / 1000.0;
                 System.out.println(String.format("Application [%s] run for [%f] s.", applicationName[i], curTime));
                 tmpTime.add(curTime);
             }
@@ -57,7 +58,7 @@ class TestTaskDispatcher {
         {
             for (int i = 0; i < applicationName.length; i++) {
                 // first to test svm
-                if(!applicationName[i].contains("spark_strongly")) {
+                if(!applicationName[i].contains("spark_pregel")) { //spark_strongly
                     continue;
                 }
                 List<Double> tmpTime = new ArrayList<>();

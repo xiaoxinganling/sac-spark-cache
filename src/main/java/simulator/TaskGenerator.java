@@ -73,4 +73,15 @@ public class TaskGenerator {
         }
     }
 
+    public static Map<Long, Task> generateTaskMap(Map<Long, List<Task>> stageIdToTasks) {
+        Map<Long, Task> taskMap = new HashMap<>();
+        for (List<Task> tasks : stageIdToTasks.values()) {
+            for (Task t : tasks) {
+                assert !taskMap.containsKey(t.getTaskId());
+                taskMap.put(t.getTaskId(), t);
+            }
+        }
+        return taskMap;
+    }
+
 }

@@ -100,4 +100,19 @@ class TestTaskGenerator {
         }
     }
 
+    @Test
+    void testGenerateTaskMap() throws IOException {
+        for (int i = 0; i < applicationName.length; i++) {
+            // first to test svm
+            if(!applicationName[i].contains("spark_svm")) {
+                continue;
+            }
+            System.out.println(String.format("check task of %s", applicationName[i]));
+            Map<Long, List<Task>> stageIdToTaskList = TaskGenerator.generateTaskOfApplication(fileName + applicationPath[i]);
+            List<Long> taskIds = new ArrayList<>(TaskGenerator.generateTaskMap(stageIdToTaskList).keySet());
+            System.out.println(taskIds);
+            assertEquals(taskIds.size(), 140);
+        }
+    }
+
 }
