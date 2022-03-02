@@ -116,6 +116,16 @@ public class StageRunner {
             List<Long> computePath = new ArrayList<>();
             double runTime = CriticalPathUtil.getLongestTimeOfStageWithSource(curStage, cacheSpace, CriticalPathUtil.STAGE_LAST_NODE, computePath);
             double contrastRunTime = CriticalPathUtil.getLongestTimeOfStageWithSource(curStage, null, CriticalPathUtil.STAGE_LAST_NODE, CriticalPathUtil.NO_NEED_FOR_PATH);// TODO: to delete for performance
+            // update lru and lfu's recency and frequency
+//            if (cacheSpace.getPolicy() == ReplacePolicy.LRU || cacheSpace.getPolicy() == ReplacePolicy.LFU) {
+//                for (int k = computePath.size() - 1; k >= 0; k--) {
+//                    long rddId = computePath.get(k);
+//                    if (hotRDDIdSet.contains(rddId)) {
+//                        cacheSpace.getRDD(rddId);
+//                    }
+//                }
+//            }
+            // end update
             // update cache hit ratio
 //            List<Long> computePath = new ArrayList<>();
 //            for (RDD rdd : curStage.rdds) {

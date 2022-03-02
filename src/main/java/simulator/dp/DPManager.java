@@ -12,6 +12,9 @@ public class DPManager {
 
     // TODO: cachedRDD传进来之前先过滤掉0
     public static double chooseRDDToCache(Map<Long, Stage> keyStages, List<RDD> cachedRDD, int cacheSpaceSize, Set<Long> choseRDDIds) {
+        // 优化dcsr: 排序: //从小到大
+//        cachedRDD.sort((o1, o2) -> (int) (o1.rddId - o2.rddId));
+        // end 排序 TODO: remove 排序
         int N = cachedRDD.size();
         Set<Long> cachedRDDIds = new HashSet<>();
         for (RDD rdd : cachedRDD) {
@@ -19,6 +22,7 @@ public class DPManager {
         }
         Map<Long, Double> cachedTime = RDDTimeManager.cachedRDDTimeWithKeyStages(keyStages, cachedRDDIds);
         Map<String, Set<Long>> choice = new HashMap<>();
+        // 当cached RDD大小相同，收益也相同时，取id较小的
         double[][] dp = new double[N + 1][cacheSpaceSize + 1];
         for (int i = 1; i <= N; i++) {
             RDD curRDD = cachedRDD.get(i - 1);

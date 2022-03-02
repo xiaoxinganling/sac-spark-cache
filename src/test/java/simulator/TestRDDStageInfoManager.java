@@ -27,7 +27,7 @@ class TestRDDStageInfoManager {
     void testGenerateDistanceForHotData() throws IOException {
         for (int i = 0; i < fileNames.length; i++) {
             List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + fileNames[i]);
-            List<RDD> hotData = HotDataGenerator.hotRDD(applicationNames[i], jobList);
+            List<RDD> hotData = HotDataGenerator.hotRDD(applicationNames[i], jobList, null);
             Map<Long, PriorityQueue<Long>> rddToStageIds = RDDStageInfoManager.generateDistanceForHotData(jobList, hotData);
             System.out.println(rddToStageIds);
             System.out.println(RDDStageInfoManager.generateStageToRDDIds(rddToStageIds));
@@ -38,7 +38,7 @@ class TestRDDStageInfoManager {
     void testUpdateDistance() throws IOException {
         for (int i = 0; i < fileNames.length; i++) {
             List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + fileNames[i]);
-            List<RDD> hotData = HotDataGenerator.hotRDD(applicationNames[i], jobList);
+            List<RDD> hotData = HotDataGenerator.hotRDD(applicationNames[i], jobList, null);
             Map<Long, PriorityQueue<Long>> rddToStageIds = RDDStageInfoManager.generateDistanceForHotData(jobList, hotData);
             Set<Long> hotDataIds = new HashSet<>();
             for (RDD rdd : hotData) {

@@ -120,6 +120,11 @@ public class StageDispatcher {
         for(StageRunner sr : stageRunners) {
             lastTime = Math.max(lastTime, sr.runStagesWithCacheSpace(cacheSpace));
         }
+//        // TODO: different methods to run stage
+//        for (int i = stageRunners.length - 1; i >= 0; i--) {
+//            StageRunner sr = stageRunners[i];
+//            lastTime = Math.max(lastTime, sr.runStagesWithCacheSpace(cacheSpace));
+//        }
         logger.info(String.format("StageDispatcher [%s] has instructed StageRunner to run Stages with CacheSpace %s for [%f]s.",
                 stageDispatcherId, cacheSpace.getCachedRDDIds(), lastTime));
         return lastTime;

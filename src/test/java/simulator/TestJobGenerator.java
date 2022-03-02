@@ -6,9 +6,7 @@ import entity.Stage;
 import org.junit.jupiter.api.Test;
 import sketch.StaticSketch;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -39,9 +37,9 @@ class TestJobGenerator {
     @Test
     void generateJobsWithFilteredStagesOfApplication() throws IOException {
         for(int i = 0; i < applicationName.length; i++) {
-//            if(!applicationName[i].contains("spark_svm")) {
-//                continue;
-//            }
+            if(!applicationName[i].contains("spark_svm")) {
+                continue;
+            }
             List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + applicationPath[i]);
             System.out.println(applicationName[i] + " " + jobList.size());
             for(Job job : jobList) {
@@ -58,6 +56,57 @@ class TestJobGenerator {
                 }
                 //System.out.println("job_" + job.jobId + "_stage_num: " + job.stages.size() + " " + stageIdSet);
             }
+        }
+    }
+
+    @Test
+    void testTaskBlockRelation() throws IOException {
+
+        for(int i = 0; i < applicationName.length; i++) {
+//            if(!applicationName[i].contains("spark_svm")) {
+//                continue;
+//            }
+            int totalSerialAndParallel = 0;
+            int totalSerial = 0;
+            List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + applicationPath[i]);
+            System.out.println(applicationName[i] + " " + jobList.size());
+            for(Job job : jobList) {
+                for(Stage stage : job.stages) {
+                    Map<Long, RDD> rddInOneStage = new HashMap<>();
+                    for (RDD rdd : stage.rdds) {
+                        rddInOneStage.put(rdd.rddId, rdd);
+                    }
+                    for (RDD rdd : stage.rdds) {
+                        int validParentSize = 0;
+                        for (long parentId : rdd.rddParentIDs) {
+                            if (rddInOneStage.containsKey(parentId)) {
+                                validParentSize++;
+                            }
+                        }
+                        if (validParentSize > 1) {
+                            totalSerialAndParallel++;
+                            long totalPartitionNum = 0;
+                            for (long parentId : rdd.rddParentIDs) {
+                                if (rddInOneStage.containsKey(parentId)) {
+                                    totalPartitionNum += rddInOneStage.get(parentId).partitionNum;
+                                }
+                            }
+//                            System.out.println(String.format("job_%d_stage_%d: %d <- %s", job.jobId,
+//                                    stage.stageId, rdd.rddId, rdd.rddParentIDs));
+                            if (totalPartitionNum == rdd.partitionNum) {
+                                totalSerial++;
+                            } else {
+//                                System.out.println(String.format("Unresolved: job_%d_stage_%d: %d <- %s", job.jobId,
+//                                        stage.stageId, rdd.rddId, rdd.rddParentIDs));
+                            }
+//                            assertEquals(totalPartitionNum, rdd.partitionNum);
+                        }
+                    }
+                }
+                //System.out.println("job_" + job.jobId + "_stage_num: " + job.stages.size() + " " + stageIdSet);
+            }
+            System.out.println(String.format("Ratio of Serial: %d / %d = %.2f", totalSerial, totalSerialAndParallel,
+                    (totalSerial / (double) totalSerialAndParallel)));
         }
     }
 }

@@ -27,7 +27,7 @@ class TestDPManager {
 //                continue;
 //            }
             List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + applicationPath[i]);
-            List<RDD> hotRDD = HotDataGenerator.hotRDD(applicationName[i], jobList);
+            List<RDD> hotRDD = HotDataGenerator.hotRDD(applicationName[i], jobList, null);
             for (RDD rdd : hotRDD) {
                 System.out.print(rdd.rddId + "=" + rdd.partitionNum + " ");
             }

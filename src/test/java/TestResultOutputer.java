@@ -246,9 +246,9 @@ public class TestResultOutputer {
     // KEYPOINT
     @Test
     void testKeyPathForAllApplication() throws IOException {
-//        if(new File("key_path_cdf_sum.csv").exists() || new File("key_path_cdf_detail.csv").exists()) {
-//            return;
-//        }
+        if(new File("key_path_cdf_sum.csv").exists() || new File("key_path_cdf_detail.csv").exists()) {
+            return;
+        }
         String fileName = "E:\\Google Chrome Download\\";
         String[] applicationName = StaticSketch.applicationName;
         String[] applicationPath = StaticSketch.applicationPath;
@@ -262,6 +262,46 @@ public class TestResultOutputer {
 //                if(!applicationName[j].contains("spark_svm")) {
 //                    continue;
 //                }
+                List<JobStartEvent> jobList = new ArrayList<>();
+                List<StageCompletedEvent> stageList = new ArrayList<>();
+                StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[j]);
+                List<Long> toCacheInApplication = SimpleUtil.rddToCacheInApplication(jobList, stageList);
+                for(JobStartEvent job : jobList) {
+                    if(SimpleUtil.jobContainsParallelStages(job, stageList)) {
+                        List<Long> toCacheInJob = SimpleUtil.rddToCacheInJob(toCacheInApplication, job, stageList);
+                        if(toCacheInJob.size() > 21) {
+                            System.out.println("skip job_" + job.jobId + ", for 2^" + toCacheInJob.size());
+                            continue;
+                        }
+                        long startTime = System.currentTimeMillis();
+                        System.out.println("write " + applicationName[j] + ", job: " + job.jobId + " cache to time started!!! \n " +
+                                "estimated time: " + "2^" + toCacheInJob.size());
+                        ResultOutputer.writeCacheToTime(toCacheInJob, job, applicationName[j], "_jobs_key_path.csv", stageList);
+                        long endTime = System.currentTimeMillis();
+                        System.out.println("write " + applicationName[j] + ", job: " + job.jobId + " cache to time done!!!");
+                        System.out.println("actual time: " + (endTime - startTime)+ "ms");
+                    }
+                }
+                System.out.println("write " + applicationName[j] + " cache to time done!!!");
+            }
+        }
+    }
+
+    // KEYPOINT
+    @Test
+    void testKeyPathForAllApplicationForExp() throws IOException {
+        if(new File("key_path_cdf_sum.csv").exists() || new File("key_path_cdf_detail.csv").exists()) {
+            return;
+        }
+        String fileName = "E:\\Google Chrome Download\\";
+        String[] applicationName = StaticSketch.applicationName;
+        String[] applicationPath = StaticSketch.applicationPath;
+        {
+            for(int j = 0; j < applicationName.length; j++) {//applicationName.length
+                System.out.println("test application's : " + applicationName[j] + " key path");
+                BufferedWriter bw = new BufferedWriter(new FileWriter("key_path_cdf_detail.csv", true));
+                bw.write(String.format("test_application_%s\n", applicationName[j]));
+                bw.close();
                 List<JobStartEvent> jobList = new ArrayList<>();
                 List<StageCompletedEvent> stageList = new ArrayList<>();
                 StaticSketch.generateJobAndStageList(jobList, stageList, fileName + applicationPath[j]);

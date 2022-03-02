@@ -63,4 +63,9 @@ public class NumberUtil {
         return max;
     }
 
+    // return the number * ratio with some limitations
+    public static int numberWithRatio(int number, double ratio) {
+        return (int) Math.ceil(number * ratio);
+    }
+
 }

@@ -7,7 +7,6 @@ import entity.event.JobStartEvent;
 import org.junit.jupiter.api.Test;
 import sketch.StaticSketch;
 import utils.CacheSketcher;
-import utils.SimpleUtil;
 
 import java.io.IOException;
 import java.util.*;
@@ -30,7 +29,7 @@ class TestReferenceCountManager {
         {
             for (int i = 0; i < fileNames.length; i++) {
                 List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + fileNames[i]);
-                List<RDD> hotData = HotDataGenerator.hotRDD(applicationNames[i], jobList);
+                List<RDD> hotData = HotDataGenerator.hotRDD(applicationNames[i], jobList, null);
                 Set<Long> hotDataIds = new HashSet<>();
                 List<JobStartEvent> jseList = new ArrayList<>(jobList);
                 Map<Long, Integer> hotDataRC = ReferenceCountManager.generateRefCountForHotData(jobList, hotData);
@@ -54,7 +53,7 @@ class TestReferenceCountManager {
             // 测试最终hotDataRC所有value为0
             for (int i = 0; i < fileNames.length; i++) {
                 List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + fileNames[i]);
-                List<RDD> hotData = HotDataGenerator.hotRDD(applicationNames[i], jobList);
+                List<RDD> hotData = HotDataGenerator.hotRDD(applicationNames[i], jobList, null);
                 Map<Long, Integer> rddIdToActionNum = ReferenceCountManager.generateRDDIdToActionNum(jobList);
                 Map<Long, Integer> hotDataRC = ReferenceCountManager.generateRefCountForHotData(jobList, hotData);
                 System.out.println(hotDataRC);
@@ -80,7 +79,7 @@ class TestReferenceCountManager {
             // 测试最终hotDataRC所有value为0
             for (int i = 0; i < fileNames.length; i++) {
                 List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + fileNames[i]);
-                List<RDD> hotData = HotDataGenerator.hotRDD(applicationNames[i], jobList);
+                List<RDD> hotData = HotDataGenerator.hotRDD(applicationNames[i], jobList, null);
                 Map<Long, Integer> rddIdToActionNum = ReferenceCountManager.generateRDDIdToActionNum(jobList);
                 Map<Long, Integer> hotDataRC = ReferenceCountManager.generateRefCountForHotData(jobList, hotData);
                 System.out.println(hotDataRC);

@@ -10,8 +10,6 @@ import sketch.StaticSketch;
 import java.io.IOException;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 class TestRDDTimeManager {
 
     String fileName = "E:\\Google Chrome Download\\";
@@ -25,7 +23,7 @@ class TestRDDTimeManager {
 //                continue;
 //            }
             List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + applicationPath[i]);
-            List<RDD> hotRDD = HotDataGenerator.hotRDD(applicationName[i], jobList);
+            List<RDD> hotRDD = HotDataGenerator.hotRDD(applicationName[i], jobList, null);
             Set<Long> hotRDDIds = new HashSet<>();
             for (RDD rdd : hotRDD) {
                 hotRDDIds.add(rdd.rddId);

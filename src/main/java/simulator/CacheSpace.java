@@ -62,9 +62,13 @@ public class CacheSpace {
                 totalSize, policy));
     }
 
+    public void getRDD(long rddId) {
+        replaceUtil.getRDD(rddId);
+    }
+
     public boolean rddInCacheSpace(long rddId) {
         boolean cacheHit = replaceUtil.getCachedRDDIds().contains(rddId);
-        replaceUtil.getRDD(rddId); // TODO: do something for this adding RDD, maybe log
+         replaceUtil.getRDD(rddId); // TODO: do something for this adding RDD, maybe log
         if(cacheHit) {
 //            logger.info(String.format("CacheSpace: cache hit RDD [%d], policy [%s].", rddId, policy));
         }else{

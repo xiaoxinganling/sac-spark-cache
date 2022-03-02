@@ -16,6 +16,7 @@ import java.util.*;
 public class StaticSketch {
     public final static String stageCompletedEventFlag = "SparkListenerStageCompleted";
     public final static String jobStartEventFlag = "SparkListenerJobStart";
+    public final static String taskEndEventFlag = "SparkListenerTaskEnd";
     public final static String[] applicationName = {"spark_connected_component", "spark_page_rank", "spark_svd++", "spark_pregel_operation",
     "spark_shorted_path", "spark_svm", "spark_strongly_connected_component",
     "spark_linear_regression", "spark_logistic_regression", "spark_matrix_factorization",

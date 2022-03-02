@@ -1,9 +1,11 @@
+import entity.Job;
 import entity.RDD;
 import entity.Stage;
 import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
 import org.apache.log4j.Logger;
 import org.junit.jupiter.api.Test;
+import simulator.JobGenerator;
 import sketch.StaticSketch;
 import sun.rmi.runtime.Log;
 import utils.CacheSketcher;
@@ -669,6 +671,19 @@ public class TestSimpleUtil {
 //                logger.info(curStage + "/" + stageList.size() + ": " + sce.stage.stageId + "——" + stageTime);
 //                logger.debug(curStage + "/" + stageList.size() + ": " + sce.stage.stageId + "——" + stageTime);
             }
+        }
+    }
+
+    @Test
+    void testDrawJobStageGraph() throws IOException {
+        String bashPath = "C:\\Users\\小小冰\\Desktop\\MasterLearning\\research\\毕业论文\\test_graph_viz\\run_stage_relation.sh";
+        for (int i = 0; i < applicationName.length; i++) {
+//            if (!applicationName[i].contains("spark_svm")) {
+//                continue;
+//            }
+            List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName +applicationPath[i]);
+            String gvPath = String.format("C:\\Users\\小小冰\\Desktop\\MasterLearning\\research\\毕业论文\\test_graph_viz\\%s\\", applicationName[i]);
+            SimpleUtil.drawJobStageGraph(jobList, applicationName[i], bashPath, gvPath);
         }
     }
 

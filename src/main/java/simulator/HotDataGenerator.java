@@ -19,7 +19,21 @@ public class HotDataGenerator {
 
     public static Logger logger = Logger.getLogger(HotDataGenerator.class);
 
-    public static List<RDD> hotRDD(String applicationName, List<Job> jobList) {
+    public static List<RDD> hotRDD(String applicationName, List<Job> jobList, ReplacePolicy replacePolicy) {
+//        if (replacePolicy != null) {// TODO: need to remove
+//            if (replacePolicy != ReplacePolicy.DP) {
+//                Map<Long, RDD> rddMap = new HashMap<>();
+//                for (Job job : jobList) {
+//                    for (Stage stage : job.stages) {
+//                        for (RDD rdd : stage.rdds) {
+//                            rddMap.putIfAbsent(rdd.rddId, rdd);
+//                        }
+//                    }
+//                }
+//                List<RDD> res = new ArrayList<>(rddMap.values());
+//                return res;
+//            }
+//        }
         List<JobStartEvent> jseList = new ArrayList<>(jobList);
         int[][] simpleDAG = CacheSketcher.generateSimpleDAGByJobsAndStages(jseList, null);
         Set<Long> hotRDDIds = new HashSet<>();
@@ -94,7 +108,8 @@ public class HotDataGenerator {
             totalSize += rdd.partitionNum;
 //            System.out.println(rdd.rddId + " -> " + rdd.partitionNum);
         }
-        long proposeSize = (totalSize & 0x1) == 0 ? totalSize / 2 : totalSize / 2 + 1;
+//        long proposeSize = (totalSize & 0x1) == 0 ? totalSize / 2 : totalSize / 2 + 1;
+        long proposeSize = totalSize; //直接传入总size
         logger.info(String.format("HotDataGenerator: Proposed CacheSpace size for [%s] is [%d], average [%.2f].",
                 application, proposeSize, totalSize / (double) hotData.size()));
         return proposeSize;

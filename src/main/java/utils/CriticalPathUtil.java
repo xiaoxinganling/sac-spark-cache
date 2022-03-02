@@ -4,6 +4,9 @@ import entity.Job;
 import entity.RDD;
 import entity.Stage;
 import simulator.CacheSpace;
+import simulator.ReplacePolicy;
+import sketch.StaticSketch;
+
 import java.util.*;
 
 
@@ -49,7 +52,7 @@ public class CriticalPathUtil {
 
     // Perform DFS on graph and set departure time of all
     // vertices of the graph
-    private static int DFS(Graph graph, int v, boolean[] discovered,
+    public static int DFS(Graph graph, int v, boolean[] discovered,
                            int[] departure, int time) {
         // mark current node as discovered
         discovered[v] = true;
@@ -221,21 +224,37 @@ public class CriticalPathUtil {
             Map<Long, Long> parentMap = new HashMap<>();
             double computeTime = getLongestTimeOfStageWithPath(stage, cacheSpace, parentMap);
             UnionFindUtil ufu = new UnionFindUtil(N);
+            // start topological sort
+            List<Edge> edges = new ArrayList<>();
             for (Map.Entry<Long, Long> entry : parentMap.entrySet()) {
                 ufu.union(entry.getKey().intValue(), entry.getValue().intValue()); //直接union
+                edges.add(new Edge(entry.getKey().intValue(), entry.getValue().intValue(), 1));
             }
-            for (int i = stage.rdds.size() - 1; i >= 0; i--) {
-                RDD rdd = stage.rdds.get(i);
-                if (ufu.connected(rdd.rddId.intValue(), (int) source) && rdd.rddId != maxId + 1) {
-                    computePath.add(rdd.rddId);
+            List<Long> tmpRDDIds = TopologicalUtil.getTopologicalSortingOrder(new Graph(edges, N), N);
+            for (long rddId : tmpRDDIds) {
+                if (ufu.connected((int) rddId, (int) source) && rddId != maxId + 1) {
+                    computePath.add(rddId);
                 }
             }
+            // sort rdd => 这个优化是不符合规律的 => 其实应该选取拓扑序列(先用拓扑序列让你死的明白)
+//            List<RDD> tmpRDDs  = new LinkedList<>(stage.rdds);
+//            tmpRDDs.sort((o1, o2) -> (int) (o2.rddId - o1.rddId));
+            // end sort
+//            for (int i = tmpRDDs.size() - 1; i >= 0; i--) { // 这里是从小到大添加compute path的
+//                RDD rdd = tmpRDDs.get(i);
+//                if (ufu.connected(rdd.rddId.intValue(), (int) source) && rdd.rddId != maxId + 1) {
+//                    computePath.add(rdd.rddId);
+//                }
+//            }
             return computeTime; // fix: add for longest path
         }
         // end record path
 
         List<Edge> edges = new ArrayList<>();
-        stage.rdds.sort((o1, o2) -> (int) (o2.rddId - o1.rddId)); // TODO: 这里存在降序排序
+//        stage.rdds.sort((o1, o2) -> (int) (o2.rddId - o1.rddId)); // TODO: 这里存在降序排序
+        if (cacheSpace != null && (cacheSpace.getPolicy() == ReplacePolicy.LRU || cacheSpace.getPolicy() == ReplacePolicy.LFU)) {
+            stage.rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId));
+        }
         for(RDD rdd : stage.rdds) {
             if(cacheSpace != null && cacheSpace.rddInCacheSpace(rdd.rddId)) {
                 continue;
@@ -273,7 +292,10 @@ public class CriticalPathUtil {
             maxId = Math.max(maxId, rdd.rddId);
         }
         List<Edge> edges = new ArrayList<>();
-        stage.rdds.sort((o1, o2) -> (int) (o2.rddId - o1.rddId)); // TODO: 这里存在降序排序
+//        stage.rdds.sort((o1, o2) -> (int) (o2.rddId - o1.rddId)); // TODO: 这里存在降序排序
+        if (cacheSpace != null && (cacheSpace.getPolicy() == ReplacePolicy.LRU || cacheSpace.getPolicy() == ReplacePolicy.LFU)) {
+            stage.rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId));
+        }
         for(RDD rdd : stage.rdds) {
             if(cacheSpace != null && cacheSpace.rddInCacheSpace(rdd.rddId)) {
                 continue;
@@ -297,8 +319,16 @@ public class CriticalPathUtil {
 
         int source = SimpleUtil.lastRDDOfStage(stage).rddId.intValue();
 
+
+
         // find longest distance of all vertices from given source
-        return findLongestDistanceWithPath(graph, source, N, parentMap); // add initial compute time
+        double runTime = findLongestDistanceWithPath(graph, source, N, parentMap); // add initial compute time
+        if (runTime == 0) {
+            // 特殊情况: stage的执行时间为0
+            assert parentMap.size() == 0;
+            parentMap.put(SimpleUtil.lastRDDOfStage(stage).rddId, maxId + 1);
+        }
+        return runTime;
     }
 
     /**
@@ -362,31 +392,31 @@ public class CriticalPathUtil {
     }
 
     public static void main(String[] args) {
-//        // List of graph edges as per above diagram
-//        List<Edge> edges = Arrays.asList(
-//                new Edge(0, 1, 5),
-//                new Edge(2, 3, 7),
-//                new Edge(0, 2, 3),
-//                new Edge(3, 5, 1),
-//                new Edge(1, 3, 6),
-//                new Edge(3, 4, -1),
-//                new Edge(1, 2, 2),
-//                new Edge(4, 5, -2),
-//                new Edge(2, 4, 4),
-//                new Edge(2, 5, 2)
-//        );
-//
-//        // Set number of vertices in the graph
-//        final int N = 6;
-//
-//        // create a graph from given edges
-//        Graph graph = new Graph(edges, N);
-//
-//        // source vertex
-//        int source = 1;
-//
-//        // find longest distance of all vertices from given source
-//        findLongestDistance(graph, source, N);
+        // List of graph edges as per above diagram
+        List<Edge> edges = Arrays.asList(
+                new Edge(0, 1, 5),
+                new Edge(2, 3, 7),
+                new Edge(0, 2, 3),
+                new Edge(3, 5, 1),
+                new Edge(1, 3, 6),
+                new Edge(3, 4, -1),
+                new Edge(1, 2, 2),
+                new Edge(4, 5, -2),
+                new Edge(2, 4, 4),
+                new Edge(2, 5, 2)
+        );
+
+        // Set number of vertices in the graph
+        final int N = 6;
+
+        // create a graph from given edges
+        Graph graph = new Graph(edges, N);
+
+        // source vertex
+        int source = 1;
+
+        // find longest distance of all vertices from given source
+        findLongestDistance(graph, source, N);
     }
 }
 

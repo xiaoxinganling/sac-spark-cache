@@ -1,11 +1,14 @@
 package utils;
 
+import entity.Job;
 import entity.RDD;
 import entity.Stage;
 import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
 
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
@@ -600,6 +603,72 @@ public class SimpleUtil {
             }
         }
         return res;
+    }
+
+    public static void drawJobStageGraph(List<Job> jobList, String applicationName, String bashPath, String gvPath) throws IOException {
+        // each job => each .gv file
+        // TODOO√: 去除faded stage
+        // TODOO√: 去除无parallel的stage
+        // TODO: 再次过滤： 1.faded stage直接不出现在图中(还是弄成可以出现吧) 2. faded stage不算parallelism
+        BufferedWriter bashBw = new BufferedWriter(new BufferedWriter(new FileWriter(bashPath, true)));
+        bashBw.write(String.format("# %s\n", applicationName));
+        for (int i = 0; i < jobList.size(); i++) {
+            Job job = jobList.get(i);
+            // judge parallelism
+            boolean isParallel = false;
+            Set<Long> stageIds = new HashSet<>();
+            for (Stage s : job.stages) {
+                stageIds.add(s.stageId);
+            }
+            for (Stage s : job.stages) {
+                int parallelism = 0;
+                for (long parentId : s.parentIDs) {
+                    if (stageIds.contains(parentId)) {
+                        parallelism++;
+                        if (parallelism > 1) {
+                            isParallel = true;
+                            break;
+                        }
+                    }
+                }
+//                if (s.parentIDs.size() > 1) {
+//                    isParallel = true;
+//                    break;
+//                }
+            }
+            // end judge
+            if (!isParallel) {
+                continue;
+            }
+            String picName = String.format("%s_job_%d_stage", applicationName, i);
+            System.out.println(String.format("Generating pic %s...", picName));
+            bashBw.write(String.format("dot ./%s/%s.gv -Tpdf -o ./%s/%s.pdf\n", applicationName, picName, applicationName, picName));
+            // print png => too large
+//            bashBw.write(String.format("dot ./%s/%s.gv -Tpng -o ./%s/%s.png\n", applicationName, picName, applicationName, picName));
+            File graphPath = new File(gvPath);
+            assert graphPath.exists() || graphPath.mkdir();
+            BufferedWriter bw = new BufferedWriter(new FileWriter(String.format("%s.gv", gvPath + picName)));
+            bw.write("digraph pic0{\n\trankdir=LR\n");
+//            Set<Long> actualStageIds = new HashSet<>();
+            for (Stage s: job.stages) {
+//                actualStageIds.add(s.stageId);
+                for (long parentId : s.parentIDs) {
+                    if (stageIds.contains(parentId)) {
+                        bw.write(String.format("\t%d -> %d\n", parentId, s.stageId));
+                    }
+//                    actualStageIds.add(parentId);
+                }
+            }
+//            for (Stage s: job.stages) {
+//                actualStageIds.remove(s.stageId);
+//            }
+//            for (long fadedStageId : actualStageIds) {
+//                bw.write(String.format("\t%s [color = red, style = filled]\n", fadedStageId));
+//            }
+            bw.write(String.format("\t%d -> action_%d\n}", lastStageOfJob(job).stageId, i));
+            bw.close();
+        }
+        bashBw.close();
     }
 
 }
