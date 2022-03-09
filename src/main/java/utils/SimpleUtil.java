@@ -1,8 +1,6 @@
 package utils;
 
-import entity.Job;
-import entity.RDD;
-import entity.Stage;
+import entity.*;
 import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
 
@@ -340,6 +338,25 @@ public class SimpleUtil {
             }
         }
         assert res.size() == 1;
+        return res.get(0);
+    }
+
+    public static Partition lastPartitionOfTask(Task task) {
+        Set<String> partitionIdWithDegree = new HashSet<>();
+        for (Partition p : task.getPartitions()) {
+            partitionIdWithDegree.addAll(p.getParentIds());
+        }
+        List<Partition> res = new ArrayList<>();
+        for (Partition p : task.getPartitions()) {
+            if (!partitionIdWithDegree.contains(p.getPartitionId())) {
+                res.add(p);
+            }
+        }
+        assert res.size() >= 1;
+        if (res.size() == 1) {
+            return res.get(0);
+        }
+        res.sort((o1, o2) -> (int) (o2.belongRDD.rddId - o1.belongRDD.rddId));
         return res.get(0);
     }
 

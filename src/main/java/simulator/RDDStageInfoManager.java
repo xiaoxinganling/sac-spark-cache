@@ -1,8 +1,6 @@
 package simulator;
 
-import entity.Job;
-import entity.RDD;
-import entity.Stage;
+import entity.*;
 
 import java.util.*;
 
@@ -12,6 +10,8 @@ import java.util.*;
 public class RDDStageInfoManager {
 
     public static final long MAX_DISTANCE = 999999;
+
+    public static final long MAX_TASK_DISTANCE = Long.MAX_VALUE - 5;
 
     // 可用最小堆orLinkedList实现, TODO: stage or stageId? stageId√
     public static Map<Long, PriorityQueue<Long>> generateDistanceForHotData(List<Job> jobList, List<RDD> hotData) {
@@ -37,6 +37,29 @@ public class RDDStageInfoManager {
         return rddToStageIds;
     }
 
+    public static Map<String, PriorityQueue<Long>> generateDistanceForHotPartitions(Map<Long, List<Task>> stageIdToTasks,
+                                                                                    List<Partition> hotPartitions) {
+        Map<String, PriorityQueue<Long>> partitionToTaskIds = new HashMap<>();
+        Set<String> hotPartitionIds = new HashSet<>();
+        for (Partition p : hotPartitions) {
+            hotPartitionIds.add(p.getPartitionId());
+        }
+        for (List<Task> tasks : stageIdToTasks.values()) {
+            for (Task t : tasks) {
+                for (Partition partition : t.getPartitions()) {
+                    String key = partition.getPartitionId();
+                    if (hotPartitionIds.contains(key)) {
+                        PriorityQueue<Long> minHeap = partitionToTaskIds.getOrDefault(key, new PriorityQueue<>((o1, o2) -> (int) (o1 - o2)));
+                        minHeap.offer(t.getTaskId());
+                        partitionToTaskIds.put(key, minHeap);
+                    }
+                }
+            }
+        }
+        return partitionToTaskIds;
+
+    }
+
     public static void updateDistance(Map<Long, PriorityQueue<Long>> rddToStageIds, Stage stage) {
         for (RDD rdd : stage.rdds) {
             long key = rdd.rddId;
@@ -50,6 +73,26 @@ public class RDDStageInfoManager {
                 } // => 兼容所有情况
 //                assert stage.stageId.equals(stageIds.peek());
 //                stageIds.poll(); // check no need to rewrite? -> no need
+            }
+        }
+    }
+
+
+    public static void updatePartitionDistance(Map<String, PriorityQueue<Long>> partitionToTaskIds, Task task) {
+        for (Partition partition : task.getPartitions()) {
+            String key = partition.getPartitionId();
+            if (partitionToTaskIds.containsKey(key)) {
+                PriorityQueue<Long> taskIds = partitionToTaskIds.get(key);
+//                if (task.getTaskId().equals(taskIds.peek())) {
+//                    taskIds.poll();
+//                    if (taskIds.size() == 0) {
+//                        taskIds.offer(MAX_TASK_DISTANCE);
+//                    }
+//                }
+                taskIds.remove(task.getTaskId());
+                if (taskIds.size() == 0) {
+                    taskIds.offer(MAX_TASK_DISTANCE);
+                }
             }
         }
     }

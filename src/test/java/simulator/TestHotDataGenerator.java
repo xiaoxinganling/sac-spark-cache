@@ -1,12 +1,19 @@
 package simulator;
 
 import entity.Job;
+import entity.Partition;
 import entity.RDD;
+import entity.Task;
 import org.junit.jupiter.api.Test;
 import sketch.StaticSketch;
+import task.TaskGenerator;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class TestHotDataGenerator {
@@ -72,6 +79,36 @@ class TestHotDataGenerator {
                 List<RDD> hotData = HotDataGenerator.hotRDD(applicationNames[i], jobList, rp);
                 System.out.println(rp + " " + hotData.size());
             }
+        }
+    }
+
+
+    @Test
+    void testProposeTaskCacheSpace() throws IOException {
+        for (int i = 0; i < applicationName.length; i++) {
+            Map<Long, List<Task>> stageIdToTasks = TaskGenerator.generateTaskOfApplicationV2(
+                    fileName + StaticSketch.applicationPath[i], null);
+            List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + StaticSketch.applicationPath[i]);
+            List<RDD> hotData = HotDataGenerator.hotRDD(fileName + StaticSketch.applicationPath[i], jobList, null);
+            Set<Long> hotRDDIds = new HashSet<>();
+            Set<String> hasAdded = new HashSet<>();
+            for (RDD rdd : hotData) {
+                hotRDDIds.add(rdd.rddId);
+            }
+            long proposedSize = HotDataGenerator.proposeTaskCacheSpace(applicationName[i], hotData, stageIdToTasks);
+            long sum = 0;
+            for (List<Task> tasks : stageIdToTasks.values()) {
+                for (Task task : tasks) {
+                    for (Partition p : task.getPartitions()) {
+                        if (!hotRDDIds.contains(p.belongRDD.rddId) || hasAdded.contains(p.getPartitionId())) {
+                            continue;
+                        }
+                        sum += p.getMemorySize();
+                        hasAdded.add(p.getPartitionId());
+                    }
+                }
+            }
+            assertEquals(sum, proposedSize);
         }
     }
 

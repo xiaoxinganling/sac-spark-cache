@@ -1,10 +1,9 @@
 package simulator;
 
-import entity.Job;
-import entity.RDD;
-import entity.Stage;
+import entity.*;
 import entity.event.JobStartEvent;
 import utils.CacheSketcher;
+import utils.CriticalPathUtil;
 import utils.SimpleUtil;
 import java.util.*;
 
@@ -12,6 +11,21 @@ import java.util.*;
  * 采用twice data的思路生成reference count
  */
 public class ReferenceCountManager {
+
+    // record rdd map of an application (job list)
+    private static Map<Long, RDD> rddMapForSchedule;
+
+    // record hot partition ids of application
+    private static Set<String> hotPartitionIdsForSchedule;
+
+    // record hot rdd ids of application
+    private static Set<Long> hotRDDIdsForSchedule;
+
+    private static Map<Long, Stage> stageMapForSchedule;
+
+    private static Set<Long> lastStageIdsOfJobsForSchedule;
+
+    private static Map<Long, Set<Long>> stageIdToRDDIdSetForSchedule;
 
     public static Map<Long, Integer> generateRefCountForHotData(List<Job> jobList, List<RDD> hotData) {
         Map<Long, Integer> hotDataRC = new HashMap<>();
@@ -28,6 +42,85 @@ public class ReferenceCountManager {
         return hotDataRC;
     }
 
+    public static Map<String, Integer> generateRefCountForHotPartition(List<Job> jobList, List<Partition> hotPartitions,
+                                                                     Map<Long, List<Task>> stageIdToTasks) {
+        Map<String, Integer> hotPartitionRC = new HashMap<>();
+//        Map<Long, Set<Long>> stageIdToRDDIds = new HashMap<>();
+//        Map<Long, Stage> stageMap = new HashMap<>();
+        rddMapForSchedule = new HashMap<>();
+        stageMapForSchedule = new HashMap<>();
+        lastStageIdsOfJobsForSchedule = new HashSet<>();
+        stageIdToRDDIdSetForSchedule = new HashMap<>();
+        for (Job job : jobList) {
+            lastStageIdsOfJobsForSchedule.add(SimpleUtil.lastStageOfJob(job).stageId);
+            for (Stage stage : job.stages) {
+                Set<Long> rddIds = new HashSet<>();
+                stageMapForSchedule.putIfAbsent(stage.stageId, stage);
+                for (RDD rdd : stage.rdds) {
+                    rddMapForSchedule.putIfAbsent(rdd.rddId, rdd);
+                    rddIds.add(rdd.rddId);
+                }
+                stageIdToRDDIdSetForSchedule.put(stage.stageId, rddIds);
+            }
+        }
+        hotPartitionIdsForSchedule = new HashSet<>();
+        hotRDDIdsForSchedule = new HashSet<>();
+        for (Partition p : hotPartitions) {
+            hotPartitionIdsForSchedule.add(p.getPartitionId());
+            hotRDDIdsForSchedule.add(Long.parseLong(p.getPartitionId().split("_")[0]));
+        }
+        // 1. 第一类rc 四重for循环
+        // 2. 第二类rc 跨stage间的rc 五重for循环
+        for (Map.Entry<Long, List<Task>> entry : stageIdToTasks.entrySet()) {
+            long stageId = entry.getKey();
+            List<Task> tasks = entry.getValue();
+            for (Task t : tasks) {
+                for (Partition p : t.getPartitions()) {
+                    boolean needToConsiderOverStage = true;
+                    for (String parentId : p.getParentIds()) {
+                        if (!hotPartitionIdsForSchedule.contains(parentId)) {
+                            continue;
+                        }
+                        long parentRDDId = Long.parseLong(parentId.split(CriticalPathUtil.PARTITION_FLAG)[0]);
+                        if (p.belongRDD.rddId.equals(parentRDDId)) {
+                            needToConsiderOverStage = false;
+                        }
+                        if (stageIdToRDDIdSetForSchedule.get(stageId).contains(parentRDDId)) {
+                            int curRC = hotPartitionRC.getOrDefault(parentId, 0);
+                            hotPartitionRC.put(parentId, curRC + 1);
+                        } else if(needToConsiderOverStage) {
+                            RDD curParentRDD = rddMapForSchedule.get(parentRDDId);
+                            for (int i = 0; i < curParentRDD.partitionNum; i++) {
+                                String newParentId = String.format("%d_%d", parentRDDId, i);
+                                int curRC = hotPartitionRC.getOrDefault(newParentId, 0);
+                                hotPartitionRC.put(newParentId, curRC + 1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // 3. 第三类rc 指向action的rc
+        Map<Long, Integer> rddIdToActionNum = generateRDDIdToActionNum(jobList);
+        for (Map.Entry<Long, Integer> entry : rddIdToActionNum.entrySet()) {
+            long key = entry.getKey();
+            if (!hotRDDIdsForSchedule.contains(key)) {
+                continue;
+            }
+            int value = entry.getValue();
+            RDD curRDD = rddMapForSchedule.get(key);
+            for (int i = 0; i < curRDD.partitionNum; i++) {
+                String partitionId = String.format("%d_%d", key, i);
+                int curRC = hotPartitionRC.getOrDefault(partitionId, 0);
+                hotPartitionRC.put(partitionId, curRC + value);
+            }
+        }
+        return hotPartitionRC;
+    }
+
+
+
+    @Deprecated
     public static void updateHotDataRefCountByRDD(Map<Long, Integer> hotDataRC, RDD currentUsedRDD, Map<Long, Integer> rddIdToActionNum) { // fix bug: RDD 27's rc != 0
         // TODO: 已假设Stage中RDD不会重复出现，待验证
         Long rddId = currentUsedRDD.rddId;
@@ -59,6 +152,50 @@ public class ReferenceCountManager {
         }
     }
 
+    // TODO: partitionIdToActionNum有存在的必要吗？
+    public static void updateHotPartitionRefCountByTask(Map<String, Integer> hotPartitionRC,
+                                                        Task curRunTask,
+                                                        Map<String, Integer> partitionIdToActionNum) {
+        // 1. 更新第一类rc和第二类rc
+        long stageId = curRunTask.stageId;
+        for (Partition p : curRunTask.getPartitions()) {
+            boolean needToConsiderOverStage = true;
+            for (String parentId : p.getParentIds()) {
+                if (!hotPartitionIdsForSchedule.contains(parentId)) {
+                    continue;
+                }
+                long parentRDDId = Long.parseLong(parentId.split(CriticalPathUtil.PARTITION_FLAG)[0]);
+                if (p.belongRDD.rddId.equals(parentRDDId)) {
+                    needToConsiderOverStage = false;
+                }
+                if (stageIdToRDDIdSetForSchedule.get(stageId).contains(parentRDDId)) {
+                    hotPartitionRC.put(parentId, hotPartitionRC.get(parentId) - 1);
+                } else if(needToConsiderOverStage) {
+                    RDD curParentRDD = rddMapForSchedule.get(parentRDDId);
+                    for (int i = 0; i < curParentRDD.partitionNum; i++) {
+                        String newParentId = String.format("%d_%d", parentRDDId, i);
+                        hotPartitionRC.put(newParentId, hotPartitionRC.get(newParentId) - 1);
+                    }
+                }
+            }
+        }
+        // 2. 更新第三类rc
+        // 应该是job的last stage的last rdd
+        if (!lastStageIdsOfJobsForSchedule.contains(curRunTask.stageId)) {
+            return;
+        }
+        RDD lastRDD = SimpleUtil.lastRDDOfStage(stageMapForSchedule.get(curRunTask.stageId));
+        if (!hotRDDIdsForSchedule.contains(lastRDD.rddId)) {
+            return;
+        }
+        for (Partition p : curRunTask.getPartitions()) {
+            if (p.belongRDD.rddId.equals(lastRDD.rddId)) {
+                hotPartitionRC.put(p.getPartitionId(), hotPartitionRC.get(p.getPartitionId()) - 1);
+                partitionIdToActionNum.put(p.getPartitionId(), partitionIdToActionNum.get(p.getPartitionId()) - 1);
+            }
+        }
+    }
+
     public static Map<Long, Integer> generateRDDIdToActionNum(List<Job> jobList) {
         Map<Long, Integer> rddIdToActionNum = new HashMap<>();
         for(Job job : jobList) {
@@ -66,6 +203,25 @@ public class ReferenceCountManager {
             rddIdToActionNum.put(curLastRDDId, rddIdToActionNum.getOrDefault(curLastRDDId, 0) + 1);
         }
         return rddIdToActionNum;
+    }
+
+    public static Map<String, Integer> generatePartitionIdToActionNum(List<Job> jobList) {
+        Map<String, Integer> partitionIdToActionNum = new HashMap<>();
+        Map<Long, Integer> rddIdToActionNum = generateRDDIdToActionNum(jobList);
+        for (Map.Entry<Long, Integer> entry : rddIdToActionNum.entrySet()) {
+            long key = entry.getKey();
+            if (!hotRDDIdsForSchedule.contains(key)) {
+                continue;
+            }
+            int value = entry.getValue();
+            RDD curRDD = rddMapForSchedule.get(key);
+            for (int i = 0; i < curRDD.partitionNum; i++) {
+                String partitionId = String.format("%d_%d", key, i);
+                int curRC = partitionIdToActionNum.getOrDefault(partitionId, 0);
+                partitionIdToActionNum.put(partitionId, curRC + value);
+            }
+        }
+        return partitionIdToActionNum;
     }
 
 }

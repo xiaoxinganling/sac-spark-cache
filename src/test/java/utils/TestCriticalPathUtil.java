@@ -1,8 +1,6 @@
 package utils;
 
-import entity.Job;
-import entity.RDD;
-import entity.Stage;
+import entity.*;
 import entity.event.JobStartEvent;
 import entity.event.StageCompletedEvent;
 import org.apache.log4j.Logger;
@@ -11,6 +9,9 @@ import simulator.CacheSpace;
 import simulator.JobGenerator;
 import simulator.ReplacePolicy;
 import sketch.StaticSketch;
+import task.SCacheSpace;
+import task.TaskGenerator;
+
 import java.io.IOException;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -158,6 +159,166 @@ class TestCriticalPathUtil {
                             CriticalPathUtil.STAGE_LAST_NODE, rddIdPath);
                     System.out.println(String.format("Stage: [%d] -> rdd path: %s, total RDDs %s, time [%f]s.",
                             stage.stageId, rddIdPath, totalRDD, time));
+                }
+            }
+        }
+    }
+
+    @Test
+    void testGetLongestTimeOfTaskWithPathAndCS() throws IOException {
+        {
+            for (int i = 0; i < applicationName.length; i++) {
+                if (!applicationName[i].contains("spark_svm")) {
+                    continue;
+                }
+                System.out.println(String.format("test application %s.", applicationName[i]));
+                Map<Long, List<Task>> stageIdToTasks = TaskGenerator.generateTaskOfApplicationV2(fileName + applicationPath[i], null);
+                List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + applicationPath[i]);
+                Map<Long, Stage> stageMap = new HashMap<>();
+                for (Job job : jobList) {
+                    for (Stage stage : job.stages) {
+                        stageMap.put(stage.stageId, stage);
+                    }
+                }
+                for (List<Task> tasks : stageIdToTasks.values()) {
+                    for (Task task : tasks) {
+                        List<String> computePath = new ArrayList<>();
+                        List<String> totalPath = new ArrayList<>();
+                        List<Long> stageComputePath = new ArrayList<>();
+                        stageMap.get(task.stageId).rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId));
+                        List<Long> stageTotalPath = new ArrayList<>();
+                        for (RDD rdd : stageMap.get(task.stageId).rdds) {
+                            stageTotalPath.add(rdd.rddId);
+                        }
+                        for (Partition p : task.getPartitions()) {
+                            totalPath.add(p.getPartitionId());
+                        }
+                        totalPath.sort(String::compareTo);
+                        // compute Path记录的是整理计算情况，不能直接用来作为除以时间的百分比
+                        double time = CriticalPathUtil.getLongestTimeOfTaskWithSource(task, null,
+                                CriticalPathUtil.TASK_LAST_NODE, computePath);
+                        double compareTime = CriticalPathUtil.getLongestTimeOfTaskWithSource(task, null,
+                                CriticalPathUtil.TASK_LAST_NODE, null);
+//                        computePath.size();
+                        Map<Long, Long> parentMap = new HashMap<>();
+                        CriticalPathUtil.getLongestTimeOfTaskWithPath(task, null, parentMap);
+                        long lastRDDId = SimpleUtil.lastPartitionOfTask(task).belongRDD.rddId;
+                        int size = 0;
+                        long start = lastRDDId + 1;
+                        while (parentMap.containsKey(start)) {
+                            size++;
+                            start = parentMap.get(start);
+                        }
+                        double stageTime = CriticalPathUtil.getLongestTimeOfStageWithSource(stageMap.get(task.stageId), null,
+                                CriticalPathUtil.STAGE_LAST_NODE, stageComputePath);
+                        double stageCompareTime = CriticalPathUtil.getLongestTimeOfStageWithSource(stageMap.get(task.stageId), null,
+                                CriticalPathUtil.STAGE_LAST_NODE, null);
+                        System.out.println(String.format("Task: [%d] of Stage [%d] -> time [%f]ms, compare time [%f]ms, partition path: %s, total partitions %s.",
+                                task.getTaskId(), task.stageId, time, compareTime, computePath, totalPath));
+                        System.out.println(String.format("Stage: [%d] -> time [%s] ms, compare time [%f]ms, rdd path: %s, total RDDs %s.",
+                                task.stageId, stageTime, stageCompareTime, stageComputePath, stageTotalPath));
+                        assertEquals(compareTime, time);
+                        // 正好增加了不确定性hh
+                        System.out.println(String.format("[%d,%2f] -> %2f", task.getDuration(),
+                                size / (double) task.getPartitions().size(), time));
+//                        assertEquals(String.format("%2f", task.getDuration() * size / (double) task.getPartitions().size()),
+//                                String.format("%2f", time));
+                        assertEquals(stageCompareTime, stageTime);
+//                        System.out.println(String.format("%f - %f : %.2f", time, stageTime,
+//                                SimpleUtil.generateDifferenceRatio(stageTime, time)));
+                    }
+                }
+            }
+        }
+        {
+            SCacheSpace sCacheSpace = new SCacheSpace(20, ReplacePolicy.SLRU);
+            {
+                // add partitions
+                RDD rdd = new RDD();
+                rdd.rddParentIDs = new ArrayList<>();
+                rdd.rddId = 38L;
+                RDD rdd2 = new RDD();
+                rdd2.rddParentIDs = new ArrayList<>();
+                rdd2.rddId = 30L;
+                for (int i = 0; i <= 9; i++) {
+                    Partition p = new Partition(i, 1, rdd);
+                    sCacheSpace.addPartition(p);
+                    Partition p2 = new Partition(i, 1, rdd2);
+                    sCacheSpace.addPartition(p2);
+                }
+
+            }
+            for (int i = 0; i < applicationName.length; i++) {
+//                if (!applicationName[i].contains("spark_svm")) {
+//                    continue;
+//                }
+                System.out.println(String.format("test application %s.", applicationName[i]));
+                Map<Long, List<Task>> stageIdToTasks = TaskGenerator.generateTaskOfApplicationV2(fileName + applicationPath[i], null);
+                List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + applicationPath[i]);
+                Map<Long, Stage> stageMap = new HashMap<>();
+                for (Job job : jobList) {
+                    for (Stage stage : job.stages) {
+                        stageMap.put(stage.stageId, stage);
+                    }
+                }
+                for (List<Task> tasks : stageIdToTasks.values()) {
+                    for (Task task : tasks) {
+                        List<String> computePath = new ArrayList<>();
+                        List<String> totalPath = new ArrayList<>();
+                        List<Long> stageComputePath = new ArrayList<>();
+                        stageMap.get(task.stageId).rdds.sort((o1, o2) -> (int) (o1.rddId - o2.rddId));
+                        List<Long> stageTotalPath = new ArrayList<>();
+                        for (RDD rdd : stageMap.get(task.stageId).rdds) {
+                            stageTotalPath.add(rdd.rddId);
+                        }
+                        for (Partition p : task.getPartitions()) {
+                            totalPath.add(p.getPartitionId());
+                        }
+                        totalPath.sort(String::compareTo);
+                        // compute Path记录的是整理计算情况，不能直接用来作为除以时间的百分比
+                        double time = CriticalPathUtil.getLongestTimeOfTaskWithSource(task, sCacheSpace,
+                                CriticalPathUtil.TASK_LAST_NODE, computePath);
+                        double compareTime = CriticalPathUtil.getLongestTimeOfTaskWithSource(task, null,
+                                CriticalPathUtil.TASK_LAST_NODE, null);
+                        Map<Long, Long> parentMap = new HashMap<>();
+                        CriticalPathUtil.getLongestTimeOfTaskWithPath(task, sCacheSpace, parentMap);
+                        // get path length
+                        long lastRDDId = SimpleUtil.lastPartitionOfTask(task).belongRDD.rddId;
+                        int size = 0;
+                        long start = lastRDDId + 1;
+                        while (parentMap.containsKey(start)) {
+                            size++;
+                            start = parentMap.get(start);
+                        }
+                        // end get
+                        // another get
+                        parentMap = new HashMap<>();
+                        CriticalPathUtil.getLongestTimeOfTaskWithPath(task, null, parentMap);
+                        // get path length
+                        lastRDDId = SimpleUtil.lastPartitionOfTask(task).belongRDD.rddId;
+                        int anotherSize = 0;
+                        start = lastRDDId + 1;
+                        while (parentMap.containsKey(start)) {
+                            anotherSize++;
+                            start = parentMap.get(start);
+                        }
+                        // end another get
+                        double stageTime = CriticalPathUtil.getLongestTimeOfStageWithSource(stageMap.get(task.stageId), null,
+                                CriticalPathUtil.STAGE_LAST_NODE, stageComputePath);
+                        System.out.println(String.format("Task: [%d] of Stage [%d] -> time [%f]ms, compare time [%f]ms, partition path: %s, total partitions %s.",
+                                task.getTaskId(), task.stageId, time, compareTime, computePath, totalPath));
+                        System.out.println(String.format("Stage: [%d] -> time [%s] ms, rdd path: %s, total RDDs %s.",
+                                task.stageId, stageTime, stageComputePath, stageTotalPath));
+//                        assertEquals(compareTime, time);
+                        System.out.println(String.format("compute path: %s, %d / %d: %4f -> %4f", computePath, size, anotherSize, size / (double) anotherSize, time / compareTime));
+                        assertTrue(String.format("%4f", size / (double) anotherSize).equals(
+                                String.format("%4f", time / compareTime)) || String.format("%4f", (computePath.size() - 1) / (double) anotherSize).equals(String.format("%4f", time / compareTime)));
+                        // 正好增加了不确定性hh
+//                        System.out.println(String.format("[%d, %2f] -> %2f", task.getDuration(),
+//                                size / (double) task.getPartitions().size(), time));
+//                        assertEquals(String.format("%2f", task.getDuration() * size / (double) task.getPartitions().size()),
+//                                String.format("%2f", time));
+                    }
                 }
             }
         }

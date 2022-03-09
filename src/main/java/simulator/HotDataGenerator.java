@@ -1,8 +1,6 @@
 package simulator;
 
-import entity.Job;
-import entity.RDD;
-import entity.Stage;
+import entity.*;
 import entity.event.JobStartEvent;
 import org.apache.log4j.Logger;
 import utils.CacheSketcher;
@@ -113,5 +111,35 @@ public class HotDataGenerator {
         logger.info(String.format("HotDataGenerator: Proposed CacheSpace size for [%s] is [%d], average [%.2f].",
                 application, proposeSize, totalSize / (double) hotData.size()));
         return proposeSize;
+    }
+
+    public static long proposeTaskCacheSpace(String application, List<RDD> hotRDD, Map<Long, List<Task>> stageIdToTasks) {
+        Set<Long> hotRDDIdSet = new HashSet<>();
+        for (RDD rdd : hotRDD) {
+            hotRDDIdSet.add(rdd.rddId);
+        }
+        // KEYPOINT: 使用Map去重
+        Map<String, Partition> hotPartitionMap = HotDataGenerator.generateHotPartitionMap(hotRDDIdSet, stageIdToTasks);
+        long totalSize = 0;
+        for (Partition p : hotPartitionMap.values()) {
+            totalSize += p.getMemorySize();
+        }
+        logger.info(String.format("HotDataGenerator: Proposed SCacheSpace size for [%s] is [%d], average [%.2f] of [%d] Partitions.",
+                application, totalSize, totalSize / (double) hotPartitionMap.size(), hotPartitionMap.size()));
+        return totalSize;
+    }
+
+    public static Map<String, Partition> generateHotPartitionMap(Set<Long> hotRDDIdSet, Map<Long, List<Task>> stageIdToTasks) {
+        Map<String, Partition> hotPartitionMap = new HashMap<>();
+        for (List<Task> tasks : stageIdToTasks.values()) {
+            for (Task task : tasks) {
+                for (Partition p : task.getPartitions()) {
+                    if (hotRDDIdSet.contains(p.belongRDD.rddId)) {
+                        hotPartitionMap.put(p.getPartitionId(), p);
+                    }
+                }
+            }
+        }
+        return hotPartitionMap;
     }
 }

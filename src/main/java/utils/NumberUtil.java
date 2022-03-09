@@ -68,4 +68,9 @@ public class NumberUtil {
         return (int) Math.ceil(number * ratio);
     }
 
+    public static int numberWithDivideG1(int number, int division) {
+        int res = (int) Math.ceil(number / (double) (division));
+        return Math.max(1, res);
+    }
+
 }

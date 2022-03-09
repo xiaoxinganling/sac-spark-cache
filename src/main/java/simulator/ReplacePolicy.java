@@ -6,7 +6,11 @@ public enum ReplacePolicy {
     LRC,
     MRD,
     DP,
-    FIFO;
+    FIFO,
+    SLRU,
+    SLRC,
+    SMRD,
+    SDP;
 
     public static void main(String[] args) {
         System.out.printf("%s", LRC);

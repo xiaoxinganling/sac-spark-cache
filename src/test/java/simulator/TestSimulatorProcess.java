@@ -4,11 +4,8 @@ import org.apache.log4j.Logger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import sketch.StaticSketch;
-import utils.NumberUtil;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Arrays;
 
 class TestSimulatorProcess {
 
@@ -53,7 +50,7 @@ class TestSimulatorProcess {
 //        String[] fileNames = {fileName + StaticSketch.applicationPath[15]};
 //        String[] applicationNames = {applicationName[15]}; // svm 5, triangle count 10, kmeans 12, decision_tree 14, pca 15
 //        SimulatorProcess.processWithRuntimeCache(applicationNames, fileNames);
-        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.FIFO, 1000000, 4);
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.FIFO, 1000000, 4, true);
     }
 
     // FIFO
@@ -62,37 +59,37 @@ class TestSimulatorProcess {
 //        String[] fileNames = {fileName + StaticSketch.applicationPath[15]};
 //        String[] applicationNames = {applicationName[15]}; // svm 5, triangle count 10, kmeans 12, decision_tree 14, pca 15
 //        SimulatorProcess.processWithRuntimeCache(applicationNames, fileNames);
-        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.FIFO, 20, 4);
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.FIFO, 20, 4, true);
     }
 
     // LRU
     @Test
     void testProcessWithRuntimeLRU() {
-        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.LRU, 20, 4);
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.LRU, 20, 4, true);
     }
 
     // LFU
     @Test
     void testProcessWithRuntimeLFU() {
-        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.LFU, 20, 4);
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.LFU, 20, 4, true);
     }
 
     // LRC
     @Test
     void testProcessWithRuntimeLRC() {
-        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.LRC, 20, 4);
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.LRC, 20, 4, true);
     }
 
     // MRD
     @Test
     void testProcessWithRuntimeMRD() {
-        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.MRD, 20, 4);
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.MRD, 20, 4, true);
     }
 
     // DP
     @Test
     void testProcessWithRuntimeDP() {
-        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.DP, 20, 4);
+        SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath, ReplacePolicy.DP, 20, 4, true);
     }
 
     @Test
@@ -107,7 +104,12 @@ class TestSimulatorProcess {
         }
         String runTimePath = "a_exp_run_time.csv";
         String hitRatioPath = "a_exp_hit_ratio.csv";
-        SimulatorProcess.writeExpStatistics(applicationName, applicationPath, replacePolicies, cacheSpaceSize, runTimePath, hitRatioPath, runnerSize, false);
+        BufferedWriter timeBw = new BufferedWriter(new FileWriter(runTimePath, false));
+        BufferedWriter hitRatioBw = new BufferedWriter(new FileWriter(hitRatioPath, false));
+        SimulatorProcess.writeExpStatistics(applicationName, applicationPath, replacePolicies,
+                cacheSpaceSize, runTimePath, hitRatioPath, runnerSize, false, timeBw, hitRatioBw, true);
+        timeBw.close();
+        hitRatioBw.close();
     }
 
     @Test
@@ -118,7 +120,7 @@ class TestSimulatorProcess {
         String runTimePath = "exp/a_run_time.csv"; // TODO: remove test
         String hitRatioPath = "exp/a_hit_ratio.csv";
         SimulatorProcess.writeExpStatisticsBatch(cacheSpaceRatio, parallelismRatio, replacePolicies,
-                runTimePath, hitRatioPath, applicationName, applicationPath);
+                runTimePath, hitRatioPath, applicationName, applicationPath, true);
     }
 
     @Test
@@ -139,7 +141,7 @@ class TestSimulatorProcess {
         String runTimePath = "exp/all/a_run_time.csv";
         String hitRatioPath = "exp/all/a_hit_ratio.csv"; // all
         SimulatorProcess.writeExpStatisticsBatch(cacheSpaceRatio, parallelismRatio, replacePolicies,
-                runTimePath, hitRatioPath, applicationName, applicationPath);
+                runTimePath, hitRatioPath, applicationName, applicationPath, true);
     }
 
 
@@ -163,7 +165,7 @@ class TestSimulatorProcess {
         String runTimePath = "exp/topo/better_dp/contrast/a_run_time.csv";
         String hitRatioPath = "exp/topo/better_dp/contrast/a_hit_ratio.csv"; // all
         SimulatorProcess.writeExpStatisticsBatch(cacheSpaceRatio, parallelismRatio, replacePolicies,
-                runTimePath, hitRatioPath, applicationName, applicationPath);
+                runTimePath, hitRatioPath, applicationName, applicationPath, true);
     }
 
 
@@ -175,7 +177,7 @@ class TestSimulatorProcess {
         String runTimePath = "exp/ideal/a_run_time.csv";
         String hitRatioPath = "exp/ideal/a_hit_ratio.csv";
         SimulatorProcess.writeExpStatisticsBatch(cacheSpaceRatio, parallelismRatio, replacePolicies,
-                runTimePath, hitRatioPath, applicationName, applicationPath);
+                runTimePath, hitRatioPath, applicationName, applicationPath, true);
     }
 
     @Test
@@ -196,7 +198,7 @@ class TestSimulatorProcess {
         String runTimePath = "exp/topo/better_dp/only_scc/a_run_time.csv";
         String hitRatioPath = "exp/topo/better_dp/only_scc/a_hit_ratio.csv"; // all
         SimulatorProcess.writeExpStatisticsBatch(cacheSpaceRatio, parallelismRatio, replacePolicies,
-                runTimePath, hitRatioPath, applicationName, applicationPath);
+                runTimePath, hitRatioPath, applicationName, applicationPath, true);
     }
 
     @Test
@@ -217,7 +219,7 @@ class TestSimulatorProcess {
         String runTimePath = "exp/topo/better_dp/without_hot_data/a_run_time.csv";
         String hitRatioPath = "exp/topo/better_dp/without_hot_data/a_hit_ratio.csv"; // all
         SimulatorProcess.writeExpStatisticsBatch(cacheSpaceRatio, parallelismRatio, replacePolicies,
-                runTimePath, hitRatioPath, applicationName, applicationPath);
+                runTimePath, hitRatioPath, applicationName, applicationPath, false);
 
     }
 
@@ -239,7 +241,7 @@ class TestSimulatorProcess {
         String runTimePath = "exp/topo/better_dp/schedule/a_run_time.csv";
         String hitRatioPath = "exp/topo/better_dp/schedule/a_hit_ratio.csv"; // all
         SimulatorProcess.writeExpStatisticsBatch(cacheSpaceRatio, parallelismRatio, replacePolicies,
-                runTimePath, hitRatioPath, applicationName, applicationPath);
+                runTimePath, hitRatioPath, applicationName, applicationPath, true);
     }
 
 }

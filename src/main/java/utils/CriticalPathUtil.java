@@ -1,11 +1,9 @@
 package utils;
 
-import entity.Job;
-import entity.RDD;
-import entity.Stage;
+import entity.*;
 import simulator.CacheSpace;
 import simulator.ReplacePolicy;
-import sketch.StaticSketch;
+import task.SCacheSpace;
 
 import java.util.*;
 
@@ -48,7 +46,13 @@ public class CriticalPathUtil {
 
     public static final long STAGE_LAST_NODE = Long.MAX_VALUE;
 
+    public static final long TASK_LAST_NODE = Long.MAX_VALUE - 1;
+
     public static final List<Long> NO_NEED_FOR_PATH = null;
+
+    public static final String PARTITION_FLAG = "_";
+
+    public static final long ONLY_ONE_TASK = Long.MAX_VALUE - 2;
 
     // Perform DFS on graph and set departure time of all
     // vertices of the graph
@@ -275,6 +279,151 @@ public class CriticalPathUtil {
         Graph graph = new Graph(edges, N);
 
         return findLongestDistance(graph, (int) source, N); // add initial compute time
+    }
+
+    // compute Path not null
+    public static double getLongestTimeOfTaskWithSource(Task task, SCacheSpace sCacheSpace,
+                                                        long source, List<String> computePath) {
+        // configure the graph
+        // map: rddId -> partitionId
+        Map<Long, String> rddIdToPartitionId = new HashMap<>();
+        Set<Long> rddIdSet = new HashSet<>();
+        long maxId = 0;
+        for (Partition p : task.getPartitions()) {
+            long rddId = p.belongRDD.rddId; // KEYPOINT: 关于SVM一个task里塞入多余partition的事情,这里选择直接忽视 (毕竟SVM那么少见)
+            rddIdSet.add(rddId);
+            rddIdToPartitionId.put(rddId, p.getPartitionId());
+            maxId = Math.max(maxId, rddId);
+        }
+        int N = (int) maxId + 2;
+        if (source == TASK_LAST_NODE) {
+            source = Long.parseLong(SimpleUtil.lastPartitionOfTask(task).getPartitionId().split(PARTITION_FLAG)[0]);
+        }
+        if (computePath != null) {
+            Map<Long, List<String>> rddIdToPartitionIds = null;
+            Map<Long, Long> parentMap = new HashMap<>();
+            assert computePath.size() == 0;
+            double computeTime = getLongestTimeOfTaskWithPath(task, sCacheSpace, parentMap);
+            // for only one task
+            if (parentMap.containsKey(CriticalPathUtil.ONLY_ONE_TASK)) {
+                rddIdToPartitionIds = new HashMap<>();
+                for (Partition p : task.getPartitions()) {
+                    long key = p.belongRDD.rddId;
+                    List<String> tmp = rddIdToPartitionIds.getOrDefault(key, new ArrayList<>());
+                    tmp.add(p.getPartitionId());
+                    rddIdToPartitionIds.put(key, tmp);
+                }
+            }
+            // end only one task
+            UnionFindUtil ufu = new UnionFindUtil(N);
+            // start topological sort
+            List<Edge> edges = new ArrayList<>();
+            for (Map.Entry<Long, Long> entry : parentMap.entrySet()) {
+                if (entry.getKey().equals(CriticalPathUtil.ONLY_ONE_TASK)) {
+                    continue;
+                }
+                ufu.union(entry.getKey().intValue(), entry.getValue().intValue()); //直接union
+                edges.add(new Edge(entry.getKey().intValue(), entry.getValue().intValue(), 1));
+            }
+            List<Long> tmpRDDIds = TopologicalUtil.getTopologicalSortingOrder(new Graph(edges, N), N);
+            for (long rddId : tmpRDDIds) {
+                if (ufu.connected((int) rddId, (int) source) && rddId != maxId + 1) {
+                    if (parentMap.containsKey(CriticalPathUtil.ONLY_ONE_TASK)) {
+                        assert rddIdToPartitionIds != null && rddIdToPartitionIds.containsKey(rddId);
+                        computePath.addAll(rddIdToPartitionIds.get(rddId));
+                    } else {
+                        computePath.add(rddIdToPartitionId.get(rddId));
+                    }
+                }
+            }
+            return computeTime;
+        }
+        List<Edge> edges = new ArrayList<>();
+        task.getPartitions().sort((o1, o2) -> o2.getPartitionId().compareTo(o1.getPartitionId()));
+        for (Partition p : task.getPartitions()) {
+            long partitionRDDId = p.belongRDD.rddId;
+            if (sCacheSpace != null && sCacheSpace.partitionInSCacheSpace(p.getPartitionId())) {
+                continue;
+            }
+            int partitionParentSize = 0;
+            for (String parentId : p.getParentIds()) {
+                long parentRDDId = Long.parseLong(parentId.split(PARTITION_FLAG)[0]);
+                if (parentRDDId == partitionRDDId) {
+                    // 不要自己指向自己
+                    continue;
+                }
+                if (rddIdSet.contains(parentRDDId)) {
+                    edges.add(new Edge((int) partitionRDDId, (int) parentRDDId, p.getPartitionComputeTime()));
+                    partitionParentSize++;
+                }
+            }
+            if (partitionParentSize == 0) {
+                edges.add(new Edge((int) partitionRDDId, (int) maxId + 1, p.getPartitionComputeTime()));
+            }
+        }
+        Graph graph = new Graph(edges, N);
+        return findLongestDistance(graph, (int) source, N);
+    }
+
+
+
+
+    /**
+     * getLongestTimeOfStageWithPath的Task版本
+     * @param task
+     * @param sCacheSpace
+     * @param parentMap
+     * @return
+     */
+    public static double getLongestTimeOfTaskWithPath(Task task, SCacheSpace sCacheSpace, Map<Long, Long> parentMap) {
+        // 1. generate rddIdSet
+        Set<Long> rddIdSet = new HashSet<>();
+        long maxId = 0;
+        for (Partition p : task.getPartitions()) {
+            long rddId = p.belongRDD.rddId;
+            rddIdSet.add(rddId);
+            maxId = Math.max(maxId, rddId);
+        }
+        int N = (int) maxId + 2;
+        // 2. generate Graph
+        List<Edge> edges = new ArrayList<>();
+        task.getPartitions().sort((o1, o2) -> o2.getPartitionId().compareTo(o1.getPartitionId()));
+        boolean isOnlyOneTask = false;
+        for (Partition p : task.getPartitions()) {
+            long partitionRDDId = Long.parseLong(p.getPartitionId().split(PARTITION_FLAG)[0]);
+            if (sCacheSpace != null && sCacheSpace.partitionInSCacheSpace(p.getPartitionId())) {
+                continue;
+            }
+            int partitionParentSize = 0;
+            for (String parentId : p.getParentIds()) {
+                long parentRDDId = Long.parseLong(parentId.split(PARTITION_FLAG)[0]);
+                if (parentRDDId == partitionRDDId) {
+                    isOnlyOneTask = true; // 如果自己指向自己就直接continue
+                    continue;
+                }
+                if (rddIdSet.contains(parentRDDId)) {
+                    edges.add(new Edge((int) partitionRDDId, (int) parentRDDId, p.getPartitionComputeTime()));
+                    partitionParentSize++;
+                }
+            }
+            if (partitionParentSize == 0) {
+                edges.add(new Edge((int) partitionRDDId, (int) maxId + 1, p.getPartitionComputeTime()));
+            }
+        }
+        Graph graph = new Graph(edges, N);
+        long lastPartitionRDDId = Long.parseLong(SimpleUtil.lastPartitionOfTask(task).getPartitionId().split(PARTITION_FLAG)[0]);
+        int source = (int) lastPartitionRDDId;
+        // 3. find longest distance of all vertices from given source
+        double runTime = findLongestDistanceWithPath(graph, source, N, parentMap); // add initial compute time
+        if (isOnlyOneTask) {
+            parentMap.put(ONLY_ONE_TASK, ONLY_ONE_TASK);
+        }
+        if (runTime == 0) {
+            // 特殊情况: stage的执行时间为0
+            assert parentMap.size() == 0 || (parentMap.containsKey(ONLY_ONE_TASK) && parentMap.size() == 1);
+            parentMap.put(lastPartitionRDDId, maxId + 1);
+        }
+        return runTime;
     }
 
     /**

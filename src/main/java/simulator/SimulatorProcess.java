@@ -7,9 +7,7 @@ import org.apache.log4j.Logger;
 import utils.NumberUtil;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class SimulatorProcess {
 
@@ -132,10 +130,13 @@ public class SimulatorProcess {
 
     public static void writeExpStatisticsBatch(double[] cacheSpaceRatio, double[] parallelismRatio,
                                                ReplacePolicy[] replacePolicies, String runTimePath,
-                                               String hitRatioPath, String[] applicationName, String[] applicationPath) throws IOException {
+                                               String hitRatioPath, String[] applicationName,
+                                               String[] applicationPath, boolean needHotData) throws IOException {
         if (new File(runTimePath).exists() || new File(hitRatioPath).exists()) {
             return;
         }
+        BufferedWriter timeBw = new BufferedWriter(new FileWriter(runTimePath, true));
+        BufferedWriter hitRatioBw = new BufferedWriter(new FileWriter(hitRatioPath, true));
         ArrayList<Integer> csSizes = new ArrayList<>();
         ArrayList<Integer> parallelisms = new ArrayList<>();
         BufferedReader csBr = new BufferedReader(new FileReader(SimulatorProcess.MEMORY_SIZE_INFO));
@@ -147,7 +148,7 @@ public class SimulatorProcess {
             parallelisms.add(Integer.parseInt(s));
         }
         System.out.println(csSizes + " " + parallelisms);
-        for (int i = 0; i < applicationName.length; i++) {
+        for (int i = 0; i < applicationName.length; i++) { //applicationName.length
             // 每个application计算一遍
 //            if (i < 16) { // TODO: need to remove
 //                continue;
@@ -164,14 +165,17 @@ public class SimulatorProcess {
                     Arrays.fill(tmpCSSize, NumberUtil.numberWithRatio(csSizes.get(i), csRatio));
                     int runnerSize = NumberUtil.numberWithRatio(parallelisms.get(i), pRatio); //check runner size
                     SimulatorProcess.writeExpStatistics(newApplicationName, newApplicationPath, replacePolicies, tmpCSSize,
-                            runTimePath, hitRatioPath, runnerSize, true);
+                            runTimePath, hitRatioPath, runnerSize, true, timeBw, hitRatioBw, needHotData);
                 }
             }
         }
+        timeBw.close();
+        hitRatioBw.close();
     }
 
     public static void writeExpStatistics(String[] applicationName, String[] applicationPath, ReplacePolicy[] replacePolicies,
-                                          int[] cacheSpaceSize, String runTimePath, String hitRatioPath, int runnerSize, boolean appendable) throws IOException {
+                                          int[] cacheSpaceSize, String runTimePath, String hitRatioPath, int runnerSize, boolean appendable,
+                                          BufferedWriter timeBw, BufferedWriter hitRatioBw, boolean needHotData) throws IOException {
         List<List<Double>> runTimes = new ArrayList<>();
         List<List<Double>> hitRatios = new ArrayList<>();
         for (int i = 0; i < applicationName.length; i++) {
@@ -180,7 +184,7 @@ public class SimulatorProcess {
         }
         for (int i = 0; i < replacePolicies.length; i++) {
             List<List<Double>> expMetrics = SimulatorProcess.processWithRuntimeCache(applicationName, applicationPath,
-                    replacePolicies[i], cacheSpaceSize[i], runnerSize);
+                    replacePolicies[i], cacheSpaceSize[i], runnerSize, needHotData);
             List<Double> curRuntime = expMetrics.get(0);
             List<Double> curHitRatio = expMetrics.get(1);
             for (int j = 0; j < curRuntime.size(); j++) {
@@ -188,38 +192,65 @@ public class SimulatorProcess {
                 hitRatios.get(j).add(curHitRatio.get(j));
             }
         }
-        BufferedWriter bw = new BufferedWriter(new FileWriter(runTimePath, appendable));
-        BufferedWriter bw2 = new BufferedWriter(new FileWriter(hitRatioPath, appendable));
+//        BufferedWriter timeBw = null;
+//        BufferedWriter hitRatioBw = null;
+//        try {
+//            timeBw = new BufferedWriter(new FileWriter(runTimePath, appendable));
+//            hitRatioBw = new BufferedWriter(new FileWriter(hitRatioPath, appendable));
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
         for (int i = 0; i < runTimes.size(); i++) {
             String toPrintRunTime = runTimes.get(i).toString();
-            bw.write(toPrintRunTime.substring(1, toPrintRunTime.length() - 1) + "\n");
+            timeBw.write(String.format("%s\n", toPrintRunTime.substring(1, toPrintRunTime.length() - 1)));
             String toPrintHitRatio = hitRatios.get(i).toString();
-            bw2.write(toPrintHitRatio.substring(1, toPrintHitRatio.length() - 1) + "\n");
+            hitRatioBw.write(toPrintHitRatio.substring(1, toPrintHitRatio.length() - 1) + "\n");
         }
-        bw.close();
-        bw2.close();
-        try {
-            Thread.sleep(300);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+//        timeBw.close();
+//        hitRatioBw.close();
+//        try {
+//            Thread.sleep(300);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
     }
 
     public static List<List<Double>> processWithRuntimeCache(String[] applicationNames, String[] fileNames,
-                                                             ReplacePolicy policy, int cacheSpaceSize, int runnerSize) {
+                                                             ReplacePolicy policy, int cacheSpaceSize,
+                                                             int runnerSize, boolean needHotData) {
         CacheSpace cacheSpace = new CacheSpace(cacheSpaceSize, policy);
         StageDispatcher sd = new StageDispatcher("RUNTIME_CACHE", runnerSize, cacheSpace);
         List<Double> applicationTimeToPrint = new ArrayList<>();
         List<Double> hitRatio = new ArrayList<>();
         for (int i = 0; i < applicationNames.length; i++) {
+            List<Double> eachJobTime = new ArrayList<>();
             String application = applicationNames[i];
             String applicationFileName = fileNames[i];
+            // TODO: need to remove
 //            if (!application.contains("spark_strongly")) {
 //                continue;
 //            }
+            // TODO: need to remove
+//            if (!application.contains("spark_svm")) {
+//                continue;
+//            }
+            // KEYPOINT 原来问题出在这呢
             // get job list and hot data
             JobStageSubmitter jss = new JobStageSubmitter(application, applicationFileName);
             List<RDD> hotData = HotDataGenerator.hotRDD(application, jss.jobList, policy);
+            if (!needHotData && policy != ReplacePolicy.DP) { // DP不过滤
+                Map<Long, RDD> rddMap = new HashMap<>();
+                for (Job job : jss.jobList) {
+                    for (Stage stage : job.stages) {
+                        for (RDD rdd : stage.rdds) {
+                            if (!rddMap.containsKey(rdd.rddId)) {
+                                rddMap.put(rdd.rddId, rdd);
+                            }
+                        }
+                    }
+                }
+                hotData = new ArrayList<>(rddMap.values());
+            }
             long proposedSize = HotDataGenerator.proposeCacheSpaceSize(application, hotData); // TODO: do something for the size
             // prepare for running application, StageDispatcher -> (StageRunner | CacheSpace)
             sd.prepareForNewApplication(application, jss.jobList, hotData);
@@ -239,11 +270,16 @@ public class SimulatorProcess {
                 logger.info(String.format("SimulatorProcess: application [%s] job [%s] has run for [%f]s.)",
                         application, job.jobId, jobTotalTime));
                 applicationTotalTime += jobTotalTime;
+                eachJobTime.add(jobTotalTime / 1000);
             }
             logger.debug(String.format("SimulatorProcess: application [%s] has run for [%f]s.)",
                     application, applicationTotalTime));
             applicationTimeToPrint.add(applicationTotalTime);
             hitRatio.add(StageDispatcher.hitRatio());
+            if (cacheSpaceSize > 99999) {
+                System.out.println(String.format("Application [%s] totalTime: [%f], eachJobTime: %s.",
+                        applicationNames[i], applicationTotalTime / 10, eachJobTime));
+            }
         }
         for (int i = 0; i < applicationTimeToPrint.size(); i++) {
 //            System.out.println(applicationTimeToPrint.get(i));

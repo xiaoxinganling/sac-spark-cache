@@ -36,4 +36,7 @@ public class Stage {
 
     @JSONField(name = "Accumulables")
     public List<Accumulable> accumulableList;
+
+    public int needCPU;
+
 }

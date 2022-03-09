@@ -3,7 +3,6 @@ package task;
 import entity.TSDecision;
 import entity.Task;
 import org.junit.jupiter.api.Test;
-import simulator.TaskGenerator;
 import sketch.StaticSketch;
 
 import java.io.IOException;
@@ -44,9 +43,9 @@ class TestTaskDispatcher {
 //                for (double d : tmpTime) {
 //                    System.out.println(d);
 //                }
-                TaskDispatcher taskDispatcher = new TaskDispatcher(String.format("TD-%s", applicationName[i]), 40);
+                TaskDispatcher taskDispatcher = new TaskDispatcher(String.format("TD-%s", applicationName[i]), 40, null);
                 List<TSDecision> tsDecisions = taskDispatcher.dispatchTask(stageIdToTaskList, null);
-                double curTime = taskDispatcher.runTasks(tsDecisions, null) / 1000.0;
+                double curTime = taskDispatcher.runTasks(tsDecisions, null, false) / 1000.0;
                 System.out.println(String.format("Application [%s] run for [%f] s.", applicationName[i], curTime));
                 tmpTime.add(curTime);
             }
@@ -65,7 +64,7 @@ class TestTaskDispatcher {
                 Map<Long, List<Task>> stageIdToTasks = TaskGenerator.generateTaskOfApplication(fileName + applicationPath[i]);
                 TaskGenerator.updateTaskTimeWithMaxTime(stageIdToTasks);
                 for (int j = 1; j <= 200; j++) {
-                    TaskDispatcher taskDispatcher = new TaskDispatcher(String.format("TD-%s", applicationName[i]), j);
+                    TaskDispatcher taskDispatcher = new TaskDispatcher(String.format("TD-%s", applicationName[i]), j, null);
                     double curTime = taskDispatcher.dispatchAndRunTask(applicationName[i],
                             fileName + applicationPath[i], stageIdToTasks);
                     System.out.println(String.format("Application [%s] run for [%f] s with [%d] TaskRunners.",
@@ -92,7 +91,7 @@ class TestTaskDispatcher {
 //                }
                 Map<Long, List<Task>> stageIdToTasks = TaskGenerator.generateTaskOfApplication(fileName + applicationPath[i]);
                 TaskGenerator.updateTaskTimeWithMaxTime(stageIdToTasks);
-                TaskDispatcher taskDispatcher = new TaskDispatcher(String.format("TD-%s", applicationName[i]), taskRunnerSize);
+                TaskDispatcher taskDispatcher = new TaskDispatcher(String.format("TD-%s", applicationName[i]), taskRunnerSize, null);
                 double curTime = taskDispatcher.dispatchAndRunTask(applicationName[i],
                         fileName + applicationPath[i], stageIdToTasks);
                 System.out.println(String.format("Application [%s] run for [%f] s with [%d] TaskRunners.",

@@ -1,16 +1,17 @@
 package simulator;
 
-import entity.Job;
-import entity.RDD;
-import entity.Stage;
+import entity.*;
 import org.junit.jupiter.api.Test;
 import sketch.StaticSketch;
+import task.TaskGenerator;
+import utils.CriticalPathUtil;
 import utils.SimpleUtil;
 import java.io.IOException;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static simulator.RDDStageInfoManager.MAX_DISTANCE;
+import static simulator.RDDStageInfoManager.MAX_TASK_DISTANCE;
 
 class TestRDDStageInfoManager {
 
@@ -63,5 +64,51 @@ class TestRDDStageInfoManager {
     }
 
 
+    @Test
+    void testUpdateTaskDistance() throws IOException {
+        for (int i = 0; i < fileNames.length; i++) {
+//            if (!applicationNames[i].contains("spark_svm")) {
+//                continue;
+//            }
+            System.out.println("asserting application " + applicationNames[i]);
+            Map<Long, List<Task>> stageIdToTasks = TaskGenerator.generateTaskOfApplicationV2(fileName + fileNames[i],
+                    applicationNames[i]);
+            List<Job> jobList = JobGenerator.generateJobsWithFilteredStagesOfApplication(fileName + fileNames[i]);
+            List<RDD> hotRDDs = HotDataGenerator.hotRDD(applicationName[i], jobList, null);
+            // get hot partitions
+            Set<Long> hotRDDIdSet = new HashSet<>();
+            for (RDD rdd : hotRDDs) {
+                hotRDDIdSet.add(rdd.rddId);
+            }
+            Map<String, Partition> hotPartitionMap = HotDataGenerator.generateHotPartitionMap(hotRDDIdSet, stageIdToTasks);
+            List<Partition> hotPartitions = new ArrayList<>(hotPartitionMap.values());
+            Map<String, PriorityQueue<Long>> partitionToTaskIds = RDDStageInfoManager.generateDistanceForHotPartitions(
+                    stageIdToTasks, hotPartitions);
+            for (Map.Entry<String, PriorityQueue<Long>> entry : partitionToTaskIds.entrySet()) {
+                System.out.println(entry.getKey() + ": " + entry.getValue());
+            }
+            for (List<Task> tasks : stageIdToTasks.values()) {
+                for (Task t : tasks) {
+                    for (Partition p : t.getPartitions()) {
+                        long rddId = Long.parseLong(p.getPartitionId().split(CriticalPathUtil.PARTITION_FLAG)[0]);
+                        if (hotRDDIdSet.contains(rddId)) {
+                            PriorityQueue<Long> taskIds = partitionToTaskIds.get(p.getPartitionId());
+                            assertTrue(taskIds.contains(t.getTaskId()));
+                        }
+                    }
+                }
+            }
+            for (List<Task> tasks : stageIdToTasks.values()) {
+                // 要求task执行顺序按照id来
+                for (Task t : tasks) {
+                    RDDStageInfoManager.updatePartitionDistance(partitionToTaskIds, t);
+                }
+            }
+            for (PriorityQueue<Long> value : partitionToTaskIds.values()) {
+                assertEquals(1, value.size());
+                assertEquals(MAX_TASK_DISTANCE, value.peek());
+            }
+        }
+    }
 
 }
